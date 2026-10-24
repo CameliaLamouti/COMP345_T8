@@ -1,11 +1,10 @@
 // Orders.cpp
 // COMP 345 - Assignment 1 - Part 3
-// validate() and execute() contain TODO markers for Part 1/2 checks/actions.
 // Order actions are NOT implemented at this point.
 
-// NOTE: Add Player.h and Map.h when it is implemented.
-
 #include "Orders.h"
+#include "Map.h"
+#include "Player.h"
 
 #include <iostream>
 #include <sstream>
@@ -90,11 +89,12 @@ Deploy::~Deploy() { delete armies; }
 /// @brief Validates if the current army is valid to execute.
 /// @return True if valid, false otherwise.
 bool Deploy::validate() const {
-    // Basic sanity that can be checked today.
+    // Base check
     if (!armies || *armies <= 0) return false;
-    // TODO (Part 1/2): once Player & Territory exist, add:
-    //   if (!player || !target)       return false;
-    //   if (!player->owns(target))    return false;
+    
+    if (!player || !target)       return false;
+    if (target->getOwner() != player) return false;
+
     return true;
 }
 
@@ -104,8 +104,8 @@ void Deploy::execute() {
         setEffect("invalid order (not executed)");
         return;
     }
-    // TODO (Part 1/2): once Territory exists, add:
-    //   target->setArmies(target->getArmies() + *armies);
+
+    target->setArmies(target->getArmies() + *armies);
     std::ostringstream oss;
     oss << "PLACEHOLDER - would deploy " << *armies
         << " armies (no game state changed)";
@@ -167,11 +167,10 @@ Advance::~Advance() { delete armies; }
 /// @return True if valid, false otherwise
 bool Advance::validate() const {
     if (!armies || *armies <= 0) return false;
-    // TODO (Part 1/2): once Player & Territory exist, add:
-    //   if (!player || !from || !to)       return false;
-    //   if (!player->owns(from))           return false;
-    //   if (!from->isAdjacent(to))         return false;
-    //   if (*armies > from->getArmies())   return false;
+    if (!player || !from || !to)       return false;
+    if (to->getOwner() != player)     return false; 
+    if (!from->isNeighborTo(to))         return false;
+    if (*armies > from->getArmies())   return false;
     return true;
 }
 
@@ -181,12 +180,32 @@ void Advance::execute() {
         setEffect("invalid order (not executed)");
         return;
     }
-    // TODO (Part 1/2): once Territory exists, add:
-    //   int atk = *armies, def = to->getArmies();
-    //   ...battle simulation per project description...
     std::ostringstream oss;
-    oss << "PLACEHOLDER - would advance " << *armies
-        << " armies (no game state changed)";
+
+    if(from->getOwner() == player){
+        from->setArmies(from->getArmies() - *armies);
+        to->setArmies(to->getArmies() + *armies);
+        oss << "moved " << *armies << " armies between own territories.";
+    } else {
+        int atk = *armies, def = to->getArmies();
+        int atkKills = 0, defKills = 0;
+        for (int i = 0; i < atk; ++i) if((std::rand() % 100) < 60) ++atkKills;
+        for (int i = 0; i < def; ++i) if((std::rand() % 100) < 70) ++defKills;
+
+        int atkLeft = atk - defKills;   if (atkLeft < 0) atkLeft = 0;
+        int defLeft = def - atkKills;   if (defLeft < 0) defLeft = 0;
+
+        from->setArmies(from->getArmies() - (atk - atkLeft));
+
+        if (defLeft == 0){
+            to->setOwner(player);
+            to->setArmies(atkLeft);
+            oss << "attack succeeded! Capture with: " << atkLeft << " armies.";
+        } else {
+            to->setArmies(defLeft);
+            oss << " attacked failed! Defender has: " << defLeft << " armies left.";
+        }
+    }
     setEffect(oss.str());
 }
 
@@ -237,12 +256,16 @@ Bomb::~Bomb() {}
 
 /// @brief Validates if Bomb order is valid: checks if target is valid.
 /// @return True if valid, false otherwise.
-bool Bomb::validate() const {
-    // TODO (Part 1/2): once Player & Territory is implemented, add:
-    //   if (!player || !target)               return false;
-    //   if (player->owns(target))             return false;
-    //   if (!player->ownsAdjacentTo(target))  return false;
-    return true;
+bool Bomb::validate() const {  
+    if (!player || !target)               return false;
+    if (target->getOwner() == player)     return false;
+    bool ownsAdjacent = false;
+    for(Territory* t : player->getTerritories()){
+        if(t->isNeighborTo(target)){
+            ownsAdjacent = true;
+        }
+    }
+    if(!ownsAdjacent) return false;
 }
 
 /// @brief Executes Bomb order and sets its effect.
@@ -252,7 +275,7 @@ void Bomb::execute() {
         return;
     }
     // TODO (Part 1/2): once Territory is implemented, add:
-    //   target->setArmies(target->getArmies() / 2);
+       target->setArmies(target->getArmies() / 2);
     setEffect("PLACEHOLDER - would bomb target (no game state changed)");
 }
 
@@ -299,9 +322,8 @@ Blockade::~Blockade() {}
 /// @brief Validates if a Blockade is valid: if such player or target is valid.
 /// @return True if valid, false otherwise.
 bool Blockade::validate() const {
-    // TODO (Part 1/2): once Player & Territory exist, add:
-    //   if (!player || !target)       return false;
-    //   if (!player->owns(target))    return false;
+       if (!player || !target)       return false;
+       if (target->getOwner() != player)     return false; 
     return true;
 }
 
@@ -311,9 +333,9 @@ void Blockade::execute() {
         setEffect("invalid order (not executed)");
         return;
     }
-    // TODO (Part 1/2): once Territory exists, add:
-    //   target->setArmies(target->getArmies() * 3);
-    //   target->setOwner(nullptr);
+
+       target->setArmies(target->getArmies() * 3);
+       target->setOwner(nullptr);
     setEffect("PLACEHOLDER - would blockade target (no game state changed)");
 }
 
@@ -365,10 +387,10 @@ Airlift::~Airlift() { delete armies; }
 /// @return True if valid, false otherwise.
 bool Airlift::validate() const {
     if (!armies || *armies <= 0) return false;
-    // TODO (Part 1/2): once Player & Territory exist, add:
-    //   if (!player || !from || !to)       return false;
-    //   if (!player->owns(from))           return false;
-    //   if (*armies > from->getArmies())   return false;
+
+    if (!player || !from || !to)       return false;
+    if (from->getOwner() != player)    return false;
+    if (*armies > from->getArmies())   return false;
     return true;
 }
 
@@ -378,9 +400,9 @@ void Airlift::execute() {
         setEffect("invalid order (not executed)");
         return;
     }
-    // TODO (Part 1/2): once Territory exists, add:
-    //   from->setArmies(from->getArmies() - *armies);
-    //   to->setArmies(to->getArmies() + *armies);
+  
+    from->setArmies(from->getArmies() - *armies);
+    to->setArmies(to->getArmies() + *armies);
     std::ostringstream oss;
     oss << "PLACEHOLDER - would airlift " << *armies
         << " armies (no game state changed)";
@@ -434,10 +456,9 @@ Negotiate::~Negotiate() {}
 /// @brief Validates the Negotiate order: checks if the target player is valid.
 /// @return True if valid, false otherwise.
 bool Negotiate::validate() const {
-    // Basic sanity: you can't negotiate with yourself.
+    // Basic check: you can't negotiate with yourself.
     if (player == otherPlayer) return false;
-    // TODO (Part 1/2): once Player exists, add:
-    //   if (!player || !otherPlayer) return false;
+    if (!player || !otherPlayer) return false;
     return true;
 }
 
@@ -447,8 +468,7 @@ void Negotiate::execute() {
         setEffect("invalid order (not executed)");
         return;
     }
-    // TODO (Part 1/2): once Player exists, add:
-    //   player->addNegotiation(otherPlayer);
+
     setEffect("PLACEHOLDER - would negotiate (no game state changed)");
 }
 
@@ -490,8 +510,6 @@ OrdersList& OrdersList::operator=(const OrdersList& other) {
     if (this != &other) {
         for (int i = 0; i < *count; ++i) delete orders[i];
         delete[] orders;
-        delete count;
-        delete cap;
 
         *cap   = *other.cap;
         *count = *other.count;
