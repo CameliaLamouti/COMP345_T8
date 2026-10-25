@@ -168,7 +168,7 @@ Advance::~Advance() { delete armies; }
 bool Advance::validate() const {
     if (!armies || *armies <= 0) return false;
     if (!player || !from || !to)       return false;
-    if (to->getOwner() != player)     return false; 
+    if (from->getOwner() != player)     return false; 
     if (!from->isNeighborTo(to))         return false;
     if (*armies > from->getArmies())   return false;
     return true;
@@ -258,14 +258,17 @@ Bomb::~Bomb() {}
 /// @return True if valid, false otherwise.
 bool Bomb::validate() const {  
     if (!player || !target)               return false;
-    if (target->getOwner() == player)     return false;
+    if (target->getOwner() == player)     return false; 
     bool ownsAdjacent = false;
     for(Territory* t : player->getTerritories()){
         if(t->isNeighborTo(target)){
             ownsAdjacent = true;
         }
     }
-    if(!ownsAdjacent) return false;
+    if(!ownsAdjacent) 
+        return false;
+    else
+        return true;
 }
 
 /// @brief Executes Bomb order and sets its effect.
@@ -274,8 +277,7 @@ void Bomb::execute() {
         setEffect("invalid order (not executed)");
         return;
     }
-    // TODO (Part 1/2): once Territory is implemented, add:
-       target->setArmies(target->getArmies() / 2);
+    target->setArmies(target->getArmies() / 2);
     setEffect("PLACEHOLDER - would bomb target (no game state changed)");
 }
 
@@ -334,8 +336,8 @@ void Blockade::execute() {
         return;
     }
 
-       target->setArmies(target->getArmies() * 3);
-       target->setOwner(nullptr);
+    target->setArmies(target->getArmies() * 3);
+    target->setOwner(nullptr);
     setEffect("PLACEHOLDER - would blockade target (no game state changed)");
 }
 
