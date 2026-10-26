@@ -5,9 +5,7 @@
 #include <string>
 #include <vector>
 
-// TO FIX once Player class is implemented
-// #include "Player.h"
-class Player;
+#include "Player.h"
 
 /**
  * Territory

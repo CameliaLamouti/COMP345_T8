@@ -72,7 +72,7 @@ std::ostream& operator<<(std::ostream& out, const Territory& territory) {
     if (territory.owner == nullptr) {
         out << "none";
     } else {
-        out << "territory.owner (to fix)";
+        out << territory.owner->getName();
     }
     out << ")";
     return out;

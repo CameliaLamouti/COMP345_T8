@@ -6,7 +6,7 @@
 // (e.g. armies > 0) and execute() only records a placeholder effect.
 
 // How to use:
-// 1) Compile: g++ Orders.cpp OrdersDriver.cpp Map.cpp Player.cpp -o orders_driver
+// 1) Compile: g++ -std=c++17 Orders.cpp OrdersDriver.cpp Map.cpp Player.cpp Cards.cpp -o orders_driver
 // 2) Run:     ./orders_driver
 
 #include "Orders.h"
@@ -41,8 +41,15 @@ int main() {
     t3->setOwner(p1);
     t4->setOwner(p2); // p2 owns Ontario
 
+    // Each player also keeps the list of territories it owns
+    p1->addTerritory(t1);
+    p1->addTerritory(t2);
+    p1->addTerritory(t3);
+    p2->addTerritory(t4);
+
     // Set armies on territory
     t1->setArmies(15);
+    t4->setArmies(8);  // so the Bomb order has armies to halve
 
     // Create the list
     OrdersList* list = new OrdersList();
@@ -53,8 +60,8 @@ int main() {
     list->add(new Deploy   (p1, t1, 5));
     // Advance: p1 moves 3 armies from t1 to t2 (adjacent and both owned by p1).
     list->add(new Advance  (p1, t1, t2, 3));
-    // Bomb: p1 bombs t2 (owned by p2 and t3 is adjacent to t4).
-    list->add(new Bomb     (p1, t2));
+    // Bomb: p1 bombs t4 (owned by p2, and adjacent to t3 which p1 owns).
+    list->add(new Bomb     (p1, t4));
     // Airlift: p1 airlifts 4 armies from t1 to t3 (no adjacency required).
     list->add(new Airlift  (p1, t1, t3, 4));
     // Blockade: p1 blockades t1 (owned by p1).
@@ -74,7 +81,7 @@ int main() {
                   << (list->get(i)->validate() ? "yes" : "no") << "\n";
     std::cout << "\n";
 
-    std::cout << "--- execute() each order (actions are placeholders) ---\n";
+    std::cout << "--- execute() each order ---\n";
     for (int i = 0; i < list->size(); ++i)
         list->get(i)->execute();
     std::cout << *list << "\n\n";

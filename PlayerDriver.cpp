@@ -9,7 +9,7 @@ static void printTerritories(const std::string& title, const std::vector<Territo
     for (Territory* t :list) {
         std::cout << " [" << *t << "]";
     }
-    std::cout <<std::end1;    
+    std::cout << std::endl;    
 }
 
 //player class features
@@ -41,8 +41,11 @@ int main() {
     printTerritories("Alice toAttack", alice->toAttack());
  
     std::cout << "\n=== issueOrder() ===" << std::endl;
+    std::cout << "Issue deploy order" << std::endl;
     alice->issueOrder("deploy");
+    std::cout << "Issue advance order" << std::endl;
     alice->issueOrder("advance");
+    std::cout << "Issue teleport order (invalid)" << std::endl;
     alice->issueOrder("teleport");
     std::cout << *alice << std::endl;
  
