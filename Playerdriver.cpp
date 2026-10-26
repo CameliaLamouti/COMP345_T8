@@ -9,7 +9,7 @@ static void printTerritories(const std::string& title, const std::vector<Territo
     for (Territory* t :list) {
         std::cout << " [" << *t << "]";
     }
-    std::cout <<std::end1;    
+    std::cout << std::endl;    
 }
 
 //player class features

@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 
-// TO FIX once Player class is implemented
-// #include "Player.h"
+// Player is only used through pointers in this file, so a forward declaration is enough.
 class Player;
 
 /**

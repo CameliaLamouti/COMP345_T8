@@ -23,14 +23,14 @@ static void printMaps(const std::vector<Map*>& maps) {
 // loads, validates, and prints a list of Maps
 int main() {
     std::vector<std::string> filePaths = {
-        "maps\\europe.map",
-        "maps\\does_not_exist.map",
-        "maps\\missing_file.map",
-        "maps\\rio_de_janeiro.map",
-        "maps\\invalid_configuration.map",
-        "maps\\disconnected.map",
-        "maps\\WoW.map",
-        "maps\\random.txt"
+        "maps/europe.map",
+        "maps/does_not_exist.map",
+        "maps/missing_file.map",
+        "maps/rio_de_janeiro.map",
+        "maps/invalid_configuration.map",
+        "maps/disconnected.map",
+        "maps/WoW.map",
+        "maps/random.txt"
     };
 
     std::vector<Map*> maps;

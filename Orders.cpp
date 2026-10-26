@@ -1,11 +1,13 @@
 // Orders.cpp
 // COMP 345 - Assignment 1 - Part 3
-// Order actions are NOT implemented at this point.
+// Deploy, Advance, Bomb, Blockade and Airlift change the game state when executed;
+// Negotiate only records its effect.
 
 #include "Orders.h"
 #include "Map.h"
 #include "Player.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 
@@ -107,8 +109,8 @@ void Deploy::execute() {
 
     target->setArmies(target->getArmies() + *armies);
     std::ostringstream oss;
-    oss << "PLACEHOLDER - would deploy " << *armies
-        << " armies (no game state changed)";
+    oss << "deployed " << *armies << " armies to " << target->getName()
+        << " (now " << target->getArmies() << ")";
     setEffect(oss.str());
 }
 
@@ -182,28 +184,39 @@ void Advance::execute() {
     }
     std::ostringstream oss;
 
-    if(from->getOwner() == player){
+    if (to->getOwner() == player) {
+        // The target is one of the player's own territories: just move the armies.
         from->setArmies(from->getArmies() - *armies);
         to->setArmies(to->getArmies() + *armies);
-        oss << "moved " << *armies << " armies between own territories.";
+        oss << "moved " << *armies << " armies from " << from->getName()
+            << " to " << to->getName();
     } else {
+        // The target belongs to someone else: battle. Each attacking army has a
+        // 60% chance to kill a defender, each defending army a 70% chance to kill
+        // an attacker.
         int atk = *armies, def = to->getArmies();
         int atkKills = 0, defKills = 0;
-        for (int i = 0; i < atk; ++i) if((std::rand() % 100) < 60) ++atkKills;
-        for (int i = 0; i < def; ++i) if((std::rand() % 100) < 70) ++defKills;
+        for (int i = 0; i < atk; ++i) if ((std::rand() % 100) < 60) ++atkKills;
+        for (int i = 0; i < def; ++i) if ((std::rand() % 100) < 70) ++defKills;
 
         int atkLeft = atk - defKills;   if (atkLeft < 0) atkLeft = 0;
         int defLeft = def - atkKills;   if (defLeft < 0) defLeft = 0;
 
-        from->setArmies(from->getArmies() - (atk - atkLeft));
+        // All attacking armies leave the source territory.
+        from->setArmies(from->getArmies() - atk);
 
-        if (defLeft == 0){
+        if (defLeft == 0 && atkLeft > 0) {
+            // Every defender died: the surviving attackers occupy the territory.
             to->setOwner(player);
             to->setArmies(atkLeft);
-            oss << "attack succeeded! Capture with: " << atkLeft << " armies.";
+            oss << "attack on " << to->getName() << " succeeded: captured with "
+                << atkLeft << " armies";
         } else {
+            // The territory holds: the surviving attackers go back to the source.
             to->setArmies(defLeft);
-            oss << " attacked failed! Defender has: " << defLeft << " armies left.";
+            from->setArmies(from->getArmies() + atkLeft);
+            oss << "attack on " << to->getName() << " failed: defender has "
+                << defLeft << " armies left";
         }
     }
     setEffect(oss.str());
@@ -278,7 +291,10 @@ void Bomb::execute() {
         return;
     }
     target->setArmies(target->getArmies() / 2);
-    setEffect("PLACEHOLDER - would bomb target (no game state changed)");
+    std::ostringstream oss;
+    oss << "bombed " << target->getName() << ": armies halved to "
+        << target->getArmies();
+    setEffect(oss.str());
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
@@ -338,7 +354,10 @@ void Blockade::execute() {
 
     target->setArmies(target->getArmies() * 3);
     target->setOwner(nullptr);
-    setEffect("PLACEHOLDER - would blockade target (no game state changed)");
+    std::ostringstream oss;
+    oss << "blockaded " << target->getName() << ": armies tripled to "
+        << target->getArmies() << ", territory is now neutral";
+    setEffect(oss.str());
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
@@ -406,8 +425,8 @@ void Airlift::execute() {
     from->setArmies(from->getArmies() - *armies);
     to->setArmies(to->getArmies() + *armies);
     std::ostringstream oss;
-    oss << "PLACEHOLDER - would airlift " << *armies
-        << " armies (no game state changed)";
+    oss << "airlifted " << *armies << " armies from " << from->getName()
+        << " to " << to->getName();
     setEffect(oss.str());
 }
 
@@ -569,7 +588,10 @@ bool OrdersList::move(int from, int to) {
     return true;
 }
 
+/// @brief Returns the number of orders in the list.
 int    OrdersList::size()     const { return *count; }
+
+/// @brief Returns the maximum number of orders the list can hold.
 int    OrdersList::capacity() const { return *cap; }
 
 /// @brief Grabs the order in that index in the order list.
