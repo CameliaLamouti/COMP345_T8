@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 
-// Player is only used through pointers in this file, so a forward declaration is enough.
-class Player;
+#include "Player.h"
 
 /**
  * Territory

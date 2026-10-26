@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # One program per driver, each built from only the .cpp files it needs.
-add_executable(MapDriver        Map.cpp MapDriver.cpp)
+add_executable(MapDriver        Map.cpp MapDriver.cpp Player.cpp Cards.cpp Orders.cpp)
 add_executable(PlayerDriver     Player.cpp PlayerDriver.cpp Cards.cpp Orders.cpp Map.cpp)
 add_executable(OrdersDriver     Orders.cpp OrdersDriver.cpp Map.cpp Player.cpp Cards.cpp)
 add_executable(CardsDriver      Cards.cpp CardsDriver.cpp Player.cpp Orders.cpp Map.cpp)

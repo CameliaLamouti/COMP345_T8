@@ -12,6 +12,8 @@
 #include "Map.h"
 #include "Orders.h"
 
+class Territory;
+
 /**
  * Player owns a hand of cards, a list of orders
  * and a collection of territories from the Map.
