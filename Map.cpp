@@ -313,6 +313,11 @@ Territory* Map::getTerritoryById(int id) const {
     return nullptr;
 }
 
+// returns the territories of the map
+std::vector<Territory*> Map::getTerritories() const {
+    return *territories;
+}
+
 // returns the continent at the given 0-based position, or nullptr if out of range
 Continent* Map::getContinentAt(int index) const {
     if (index < 0 || index >= getContinentCount()) {

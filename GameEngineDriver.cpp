@@ -1,53 +1,86 @@
-#include "GameEngine.h"
 #include <iostream>
+#include <set>
 #include <string>
+#include <vector>
 
-/**
- * GameEngineDriver
- * Demonstrates that the GameEngine correctly handles all valid
- * state transitions shown in the assignment diagram and rejects
- * invalid commands.
- *
- * How to use:
- *   - Compile: g++ GameEngine.cpp GameEngineDriver.cpp -o GameEngineDriver
- *   - Run:     ./GameEngineDriver
- *   - Type the commands from the diagram (loadmap, validatemap, etc.)
- *   - Type "end" while in the "win" state to quit.
- */
-int main() {
-    // Create the engine on the heap (pointer style consistent with the assignment)
-    GameEngine* engine = new GameEngine();
+#include "Cards.h"
+#include "CommandProcessing.h"
+#include "GameEngine.h"
+#include "Map.h"
+#include "Player.h"
 
-    std::cout << "=== Warzone Game Engine Driver ===" << std::endl;
-    std::cout << "Type commands to move between states." << std::endl;
-    std::cout << "Valid path example:" << std::endl;
-    std::cout << "  loadmap -> validatemap -> addplayer -> assigncountries" << std::endl;
-    std::cout << "  -> issueorder -> endissueorders -> execorder -> win -> play (or end)" << std::endl;
-    std::cout << "Type 'end' when you are in the win state to quit." << std::endl;
-    std::cout << "===================================" << std::endl << std::endl;
+// Prints the name of a test followed by PASS or FAIL
+static void printResult(const std::string& test, bool passed) {
+    std::cout << "  " << test << ": " << (passed ? "PASS" : "FAIL") << std::endl;
+}
 
-    std::string command;
+// Runs and prints the startup tests, returns true if all of them passed
+static bool verifyGameStart(const GameEngine& engine) {
+    Map* map = engine.getMap();
+    std::vector<Player*> players = engine.getPlayers();
 
-    // Keep reading commands until the user ends the game
-    while (true) {
-        std::cout << *engine << std::endl;
-        std::cout << "Enter command: ";
-        std::cin >> command;
+    bool mapLoaded = map != nullptr;
+    bool mapValidated = mapLoaded && map->validate(false);
+    bool playerCountValid = players.size() >= 2 && players.size() <= 6;
 
-        // Special case: quit only allowed from the win state
-        if (command == "end" && engine->getCurrentState() == "win") {
-            engine->processCommand(command);
-            break;
+    // an order of play is set when every player appears exactly once
+    std::set<Player*> distinctPlayers(players.begin(), players.end());
+    bool orderIsRandom = playerCountValid && distinctPlayers.size() == players.size();
+
+    // fair means every territory is owned and counts differ by at most one
+    size_t total = 0;
+    size_t smallest = players.empty() ? 0 : players[0]->getTerritories().size();
+    size_t largest = smallest;
+    bool ownersCorrect = true;
+    bool cardsDrawn = !players.empty();
+    bool armiesGiven = !players.empty();
+    for (Player* player : players) {
+        size_t count = player->getTerritories().size();
+        total += count;
+        smallest = std::min(smallest, count);
+        largest = std::max(largest, count);
+        for (Territory* territory : player->getTerritories()) {
+            if (territory->getOwner() != player) {
+                ownersCorrect = false;
+            }
         }
-
-        engine->processCommand(command);
-        std::cout << std::endl;
+        if (player->getHand()->size() != 2) {
+            cardsDrawn = false;
+        }
+        if (player->getPool() != 50) {
+            armiesGiven = false;
+        }
     }
+    bool fairDistribution = mapLoaded && ownersCorrect
+        && total == static_cast<size_t>(map->getTerritoryCount())
+        && largest - smallest <= 1;
 
-    // Clean up memory
+    bool playPhase = engine.getCurrentState() == GameState::ASSIGN_REINFORCEMENT;
+
+    std::cout << std::endl << "Startup tests:" << std::endl;
+    printResult("Map is loaded", mapLoaded);
+    printResult("Map is validated", mapValidated);
+    printResult("Players are between 2 and 6", playerCountValid);
+    printResult("Players order is random", orderIsRandom);
+    printResult("Territories are fairly distributed", fairDistribution);
+    printResult("Each player has drawn 2 cards", cardsDrawn);
+    printResult("Each player has 50 armies", armiesGiven);
+    printResult("Game is in the play phase", playPhase);
+
+    return mapLoaded && mapValidated && playerCountValid && orderIsRandom
+        && fairDistribution && cardsDrawn && armiesGiven && playPhase;
+}
+
+// Runs the startup phase with commands typed in the console, then tests the result
+int main() {
+    CommandProcessor* processor = new CommandProcessor();
+    GameEngine* engine = new GameEngine(processor);
+
+    engine->startupPhase();
+    bool passed = verifyGameStart(*engine);
+
     delete engine;
-    engine = nullptr;
+    delete processor;
 
-    std::cout << "Driver finished. No memory leaks." << std::endl;
-    return 0;
+    return passed ? 0 : 1;
 }

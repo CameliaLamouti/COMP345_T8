@@ -1,31 +1,32 @@
 // Player.cpp
-// COMP 345 - Assignment 1 - Part 2: Player
+// COMP 345 - Assignment 2: Player
 // Implementation of the Player class declared in Player.h.
 
 #include "Player.h"
 
 /**
- * Creates a player with the given name, no territories, an empty hand
- * and an empty list of orders.
+ * Creates a player with the given name, no territories, an empty hand,
+ * an empty list of orders and an empty pool.
  */
 Player::Player(const std::string& name)
     : name(new std::string(name)),
     territories(new std::vector<Territory*>()),
     attackTargets(new std::vector<Territory*>()),
     hand(new Hand()),
-    orders(new OrdersList()){}
+    orders(new OrdersList()),
+    pool(new int(0)){}
 
 /**
- * Copy constructor: copies the name, the hand and the orders (deep copy).
- * The territory lists are new lists holding the same Territory pointers,
- * because the territories belong to the Map, not to the player.
+ * Copy constructor: deep copy of the name, hand, orders and pool.
+ * The territory lists hold the same Territory pointers, since the Map owns them.
  */
 Player::Player(const Player& other)
     : name(new std::string(*other.name)),
     territories(new std::vector<Territory*>(*other.territories)),
     attackTargets(new std::vector<Territory*>(*other.attackTargets)),
     hand(new Hand(*other.hand)),
-    orders(new OrdersList(*other.orders)){}
+    orders(new OrdersList(*other.orders)),
+    pool(new int(*other.pool)){}
 
 /**
  * Assignment operator: same copying rules as the copy constructor,
@@ -38,6 +39,7 @@ Player& Player::operator=(const Player& other){
         *attackTargets = *other.attackTargets;
         *hand = *other.hand;
         *orders = *other.orders;
+        *pool = *other.pool;
     }
     return *this;
 }
@@ -52,6 +54,7 @@ Player::~Player(){
     delete attackTargets;
     delete hand;
     delete orders;
+    delete pool;
 }
 
 /**
@@ -94,6 +97,20 @@ Hand* Player::getHand() const{
  */
 OrdersList* Player::getOrders() const{
     return orders;
+}
+
+/**
+ * Returns the number of armies in the player's pool.
+ */
+int Player::getPool() const{
+    return *pool;
+}
+
+/**
+ * Sets the number of armies in the player's pool.
+ */
+void Player::setPool(int armies){
+    *pool = armies;
 }
 
 /**
@@ -141,13 +158,14 @@ bool Player::issueOrder(const std::string& orderType){
 
 /**
  * Stream insertion operator: prints the player's name, territories,
- * hand of cards and list of orders.
+ * pool, hand of cards and list of orders.
  */
 std::ostream& operator<<(std::ostream& out, const Player& player){
     out << "Player " << player.getName() << "\n Territories:";
     for (Territory* t : player.getTerritories()){
         out << " [" << *t << "]";
     }
+    out << "\n Pool: " << player.getPool();
     out << "\n Hand: " << *player.getHand();
     out << "\n Orders: " << *player.getOrders();
     return out;

@@ -117,6 +117,7 @@ public:
     int getTerritoryCount() const;
     int getContinentCount() const;
     Territory* getTerritoryById(int id) const;
+    std::vector<Territory*> getTerritories() const;
     Continent* getContinentAt(int index) const;
 
     // adds a territory to the map

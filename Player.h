@@ -1,5 +1,5 @@
 // Player.h
-// COMP 345 - Assignment 1 - Part 2: Player
+// COMP 345 - Assignment 2: Player
 
 #ifndef PLAYER_H
 #define PLAYER_H
@@ -15,12 +15,12 @@
 class Territory;
 
 /**
- * Player owns a hand of cards, a list of orders
+ * Player owns a hand of cards, a list of orders, a pool of armies
  * and a collection of territories from the Map.
  */
 class Player {
 public:
-    explicit Player(const std::string& name);      // Creates a player with no territories, an empty hand and an empty orders list
+    explicit Player(const std::string& name);      // Creates a player with no territories, an empty hand, an empty orders list and an empty pool
     Player(const Player& other);                   // Copy constructor
     Player& operator=(const Player& other);        // Assignment operator
     ~Player();                                     // Destructor
@@ -31,6 +31,8 @@ public:
     std::vector<Territory*> getTerritories() const;// Returns the territories the player owns
     Hand* getHand() const;                         // Returns the player's hand of cards
     OrdersList* getOrders() const;                 // Returns the player's list of orders
+    int getPool() const;                           // Returns the number of armies waiting to be deployed
+    void setPool(int armies);                      // Sets the number of armies waiting to be deployed
 
     std::vector<Territory*> toDefend() const;      // Returns the territories to be defended
     std::vector<Territory*> toAttack() const;      // Returns the territories to be attacked
@@ -44,6 +46,7 @@ private:
     std::vector<Territory*>* attackTargets;   // not owned
     Hand* hand;                               // owned
     OrdersList* orders;                       // owned
+    int* pool;                                // owned: armies not yet deployed
 };
 
 #endif // PLAYER_H
