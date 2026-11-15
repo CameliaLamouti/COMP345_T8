@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <iostream>
 #include <random>
-#include <sstream>
 #include <string>
 
 #include "Cards.h"
@@ -12,12 +11,22 @@
 #include "Map.h"
 #include "Player.h"
 
-const std::string GameEngine::MAP_DIRECTORY = "maps";
+const std::string GameEngine::START = "start";
+const std::string GameEngine::MAP_LOADED = "maploaded";
+const std::string GameEngine::MAP_VALIDATED = "mapvalidated";
+const std::string GameEngine::PLAYERS_ADDED = "playersadded";
+const std::string GameEngine::ASSIGN_REINFORCEMENT = "assignreinforcement";
+const std::string GameEngine::ISSUE_ORDERS = "issueorders";
+const std::string GameEngine::EXECUTE_ORDERS = "executeorders";
+const std::string GameEngine::WIN = "win";
+const std::string GameEngine::EXIT_PROGRAM = "exitprogram";
 
-static const size_t MIN_PLAYERS = 2;
-static const size_t MAX_PLAYERS = 6;
-static const int INITIAL_ARMIES = 50;
-static const int INITIAL_CARDS = 2;
+const size_t GameEngine::MIN_PLAYERS = 2;
+const size_t GameEngine::MAX_PLAYERS = 6;
+const int GameEngine::INITIAL_ARMIES = 50;
+const int GameEngine::INITIAL_CARDS = 2;
+
+const std::string GameEngine::MAP_DIRECTORY = "maps";
 
 // Returns a random number generator seeded once from the system
 static std::mt19937& randomGenerator() {
@@ -25,24 +34,9 @@ static std::mt19937& randomGenerator() {
     return generator;
 }
 
-// Returns the readable name of a state
-std::string gameStateToString(GameState state) {
-    switch (state) {
-        case GameState::START: return "start";
-        case GameState::MAP_LOADED: return "map loaded";
-        case GameState::MAP_VALIDATED: return "map validated";
-        case GameState::PLAYERS_ADDED: return "players added";
-        case GameState::ASSIGN_REINFORCEMENT: return "assign reinforcement";
-        case GameState::ISSUE_ORDERS: return "issue orders";
-        case GameState::EXECUTE_ORDERS: return "execute orders";
-        case GameState::WIN: return "win";
-    }
-    return "unknown";
-}
-
 // Constructor: starts in the start state with no map and no players
 GameEngine::GameEngine(CommandProcessor* processor) :
-    currentState(new GameState(GameState::START)),
+    currentState(new std::string(START)),
     commandProcessor(processor),
     map(nullptr),
     players(new std::vector<Player*>()),
@@ -50,7 +44,7 @@ GameEngine::GameEngine(CommandProcessor* processor) :
 
 // Copy constructor: deep copy, the command processor is shared
 GameEngine::GameEngine(const GameEngine& other) :
-    currentState(new GameState(*other.currentState)),
+    currentState(new std::string(*other.currentState)),
     commandProcessor(other.commandProcessor),
     map(nullptr),
     players(new std::vector<Player*>()),
@@ -78,7 +72,7 @@ GameEngine& GameEngine::operator=(const GameEngine& other) {
 
 // Stream insertion operator
 std::ostream& operator<<(std::ostream& out, const GameEngine& engine) {
-    out << "Current state: " << gameStateToString(*engine.currentState)
+    out << "Current state: " << *engine.currentState
         << " (" << engine.players->size() << " players)";
     return out;
 }
@@ -97,7 +91,9 @@ void GameEngine::clearGameData() {
 
 // Copies the map, players and deck, matching territories by id
 void GameEngine::copyGameData(const GameEngine& other) {
-    deck = new Deck(*other.deck);
+    if (other.deck != nullptr) {
+        deck = new Deck(*other.deck);
+    }
 
     if (other.map != nullptr) {
         map = new Map(*other.map);
@@ -122,14 +118,14 @@ void GameEngine::copyGameData(const GameEngine& other) {
 }
 
 // Returns the current state
-GameState GameEngine::getCurrentState() const {
+std::string GameEngine::getCurrentState() const {
     return *currentState;
 }
 
 // Changes the current state and prints the transition
-void GameEngine::setNewState(GameState newState) {
-    std::cout << "Transition: " << gameStateToString(*currentState)
-              << " -> " << gameStateToString(newState) << std::endl;
+void GameEngine::transition(const std::string& newState) {
+    std::cout << "Transition: " << *currentState
+              << " -> " << newState << std::endl;
     *currentState = newState;
 }
 
@@ -175,7 +171,8 @@ void GameEngine::startupPhase() {
 
     printAvailableMaps();
 
-    while (*currentState != GameState::ASSIGN_REINFORCEMENT) {
+    while (*currentState != ASSIGN_REINFORCEMENT) {
+        std::cout << std::endl;
         Command* command = commandProcessor->getCommand();
         if (command == nullptr) {
             std::cout << "No more commands." << std::endl;
@@ -188,37 +185,23 @@ void GameEngine::startupPhase() {
             continue;
         }
 
-        std::istringstream in(command->getCommandText());
-        std::string name;
-        std::string argument;
-        in >> name >> argument;
-
-        switch (stringToCommandName(name)) {
-            case CommandName::LOAD_MAP:
-                handleLoadMap(command, argument);
-                break;
-            case CommandName::VALIDATE_MAP:
-                handleValidateMap(command);
-                break;
-            case CommandName::ADD_PLAYER:
-                handleAddPlayer(command, argument);
-                break;
-            case CommandName::GAME_START:
-                handleGameStart(command);
-                break;
-            default:
-                break;
+        const std::string name = command->getCommand();
+        if (name == CommandProcessor::LOAD_MAP) {
+            handleLoadMap(command);
+        } else if (name == CommandProcessor::VALIDATE_MAP) {
+            handleValidateMap(command);
+        } else if (name == CommandProcessor::ADD_PLAYER) {
+            handleAddPlayer(command);
+        } else if (name == CommandProcessor::GAME_START) {
+            handleGameStart(command);
         }
         std::cout << command->getEffect() << std::endl;
     }
 }
 
 // Loads a map from the map directory, a failed load keeps the previous map
-void GameEngine::handleLoadMap(Command* command, const std::string& argument) {
-    if (argument.empty()) {
-        command->saveEffect("Error: loadmap needs a map file name.");
-        return;
-    }
+void GameEngine::handleLoadMap(Command* command) {
+    const std::string argument = command->getArgument();
 
     MapLoader loader;
     Map* loaded = loader.loadMap(MAP_DIRECTORY + "/" + argument);
@@ -231,7 +214,7 @@ void GameEngine::handleLoadMap(Command* command, const std::string& argument) {
     clearGameData();
     deck = new Deck();
     map = loaded;
-    setNewState(GameState::MAP_LOADED);
+    transition(MAP_LOADED);
     command->saveEffect("Map '" + argument + "' loaded.");
 }
 
@@ -246,18 +229,16 @@ void GameEngine::handleValidateMap(Command* command) {
         command->saveEffect("Error: the map is invalid, load another one.");
         return;
     }
-    setNewState(GameState::MAP_VALIDATED);
+    transition(MAP_VALIDATED);
     command->saveEffect("Map is valid.");
 }
 
 // Adds a player, between 2 and 6 players are allowed in a game
-void GameEngine::handleAddPlayer(Command* command, const std::string& argument) {
-    if (argument.empty()) {
-        command->saveEffect("Error: addplayer needs a player name.");
-        return;
-    }
+void GameEngine::handleAddPlayer(Command* command) {
+    const std::string argument = command->getArgument();
+
     if (players->size() >= MAX_PLAYERS) {
-        command->saveEffect("Error: the game already has 6 players.");
+        command->saveEffect("Error: the game already has " + std::to_string(MAX_PLAYERS) + " players.");
         return;
     }
     for (Player* player : *players) {
@@ -268,14 +249,14 @@ void GameEngine::handleAddPlayer(Command* command, const std::string& argument) 
     }
 
     players->push_back(new Player(argument));
-    setNewState(GameState::PLAYERS_ADDED);
+    transition(PLAYERS_ADDED);
     command->saveEffect("Player '" + argument + "' added (" + std::to_string(players->size()) + " in game).");
 }
 
 // Sets up the players and switches the game to the play phase
 void GameEngine::handleGameStart(Command* command) {
     if (players->size() < MIN_PLAYERS) {
-        command->saveEffect("Error: at least 2 players are needed to start the game.");
+        command->saveEffect("Error: at least " + std::to_string(MIN_PLAYERS) + " players are needed to start the game.");
         return;
     }
 
@@ -283,7 +264,7 @@ void GameEngine::handleGameStart(Command* command) {
     shufflePlayerOrder();
     giveInitialArmies();
     drawInitialCards();
-    setNewState(GameState::ASSIGN_REINFORCEMENT);
+    transition(ASSIGN_REINFORCEMENT);
     command->saveEffect("Game started.");
 
     std::cout << "Order of play:" << std::endl;

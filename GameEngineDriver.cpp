@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <set>
 #include <string>
@@ -21,7 +22,7 @@ static bool verifyGameStart(const GameEngine& engine) {
 
     bool mapLoaded = map != nullptr;
     bool mapValidated = mapLoaded && map->validate(false);
-    bool playerCountValid = players.size() >= 2 && players.size() <= 6;
+    bool playerCountValid = players.size() >= GameEngine::MIN_PLAYERS && players.size() <= GameEngine::MAX_PLAYERS;
 
     // an order of play is set when every player appears exactly once
     std::set<Player*> distinctPlayers(players.begin(), players.end());
@@ -44,10 +45,10 @@ static bool verifyGameStart(const GameEngine& engine) {
                 ownersCorrect = false;
             }
         }
-        if (player->getHand()->size() != 2) {
+        if (player->getHand()->size() != static_cast<size_t>(GameEngine::INITIAL_CARDS)) {
             cardsDrawn = false;
         }
-        if (player->getPool() != 50) {
+        if (player->getPool() != GameEngine::INITIAL_ARMIES) {
             armiesGiven = false;
         }
     }
@@ -55,16 +56,17 @@ static bool verifyGameStart(const GameEngine& engine) {
         && total == static_cast<size_t>(map->getTerritoryCount())
         && largest - smallest <= 1;
 
-    bool playPhase = engine.getCurrentState() == GameState::ASSIGN_REINFORCEMENT;
+    bool playPhase = engine.getCurrentState() == GameEngine::ASSIGN_REINFORCEMENT;
 
     std::cout << std::endl << "Startup tests:" << std::endl;
     printResult("Map is loaded", mapLoaded);
     printResult("Map is validated", mapValidated);
-    printResult("Players are between 2 and 6", playerCountValid);
+    printResult("Players are between " + std::to_string(GameEngine::MIN_PLAYERS)
+                + " and " + std::to_string(GameEngine::MAX_PLAYERS), playerCountValid);
     printResult("Players order is random", orderIsRandom);
     printResult("Territories are fairly distributed", fairDistribution);
-    printResult("Each player has drawn 2 cards", cardsDrawn);
-    printResult("Each player has 50 armies", armiesGiven);
+    printResult("Each player has drawn " + std::to_string(GameEngine::INITIAL_CARDS) + " cards", cardsDrawn);
+    printResult("Each player has " + std::to_string(GameEngine::INITIAL_ARMIES) + " armies", armiesGiven);
     printResult("Game is in the play phase", playPhase);
 
     return mapLoaded && mapValidated && playerCountValid && orderIsRandom

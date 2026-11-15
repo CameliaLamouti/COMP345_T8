@@ -1,8 +1,6 @@
-# COMP345_T8
+# Running the drivers on Windows
 
-## Running the drivers (Windows)
-
-Run these commands from the repository root in Command Prompt.
+Run these commands from the repository's root in Command Prompt.
 
 ### Map
 ```cmd
@@ -30,6 +28,13 @@ cards.exe
 
 ### Game Engine
 ```cmd
-g++ GameEngine.cpp GameEngineDriver.cpp -o game_engine
+g++ GameEngineDriver.cpp GameEngine.cpp CommandProcessing.cpp Cards.cpp Orders.cpp Map.cpp Player.cpp -o game_engine
 game_engine.exe
+```
+
+### Command Processing
+```cmd
+g++ CommandProcessingDriver.cpp CommandProcessing.cpp GameEngine.cpp Cards.cpp Orders.cpp Map.cpp Player.cpp -o command_processing
+command_processing.exe -file commands.txt
+command_processing.exe -console
 ```

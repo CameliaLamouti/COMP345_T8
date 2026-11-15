@@ -1,0 +1,13 @@
+addplayer Alice
+validatemap
+loadmap europe.map
+loadmap
+validatemap
+gamestart
+addplayer Alice
+addplayer Bob
+addplayer Alice
+addplayer Carol
+loadmap other.map
+foo
+gamestart

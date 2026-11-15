@@ -12,30 +12,32 @@ class Command;
 class CommandProcessor;
 class FileCommandProcessorAdapter;
 
-// States of the game
-enum class GameState {
-    START,
-    MAP_LOADED,
-    MAP_VALIDATED,
-    PLAYERS_ADDED,
-    ASSIGN_REINFORCEMENT,
-    ISSUE_ORDERS,
-    EXECUTE_ORDERS,
-    WIN
-};
-
-// Returns the text of a state
-std::string gameStateToString(GameState state);
-
 /**
  * GameEngine class
  * Controls the flow of the Warzone game using states and transitions.
  */
 class GameEngine {
+public:
+    // States of the game
+    static const std::string START;
+    static const std::string MAP_LOADED;
+    static const std::string MAP_VALIDATED;
+    static const std::string PLAYERS_ADDED;
+    static const std::string ASSIGN_REINFORCEMENT;
+    static const std::string ISSUE_ORDERS;
+    static const std::string EXECUTE_ORDERS;
+    static const std::string WIN;
+    static const std::string EXIT_PROGRAM;
+
+    static const size_t MIN_PLAYERS;
+    static const size_t MAX_PLAYERS;
+    static const int INITIAL_ARMIES;
+    static const int INITIAL_CARDS;
+
 private:
     static const std::string MAP_DIRECTORY;   // directory where the map files are stored
 
-    GameState* currentState;
+    std::string* currentState;
     CommandProcessor* commandProcessor;       // not owned
     Map* map;                                 // owned
     std::vector<Player*>* players;            // owned, in order of play after gamestart
@@ -49,9 +51,9 @@ private:
     void printAvailableMaps() const;
 
     // command handlers, each one saves the effect of its command
-    void handleLoadMap(Command* command, const std::string& argument);
+    void handleLoadMap(Command* command);
     void handleValidateMap(Command* command);
-    void handleAddPlayer(Command* command, const std::string& argument);
+    void handleAddPlayer(Command* command);
     void handleGameStart(Command* command);
 
     // steps of the gamestart command
@@ -63,7 +65,7 @@ private:
 public:
     // Constructor taking a command processor (not owned)
     explicit GameEngine(CommandProcessor* processor);
-    
+
     // Copy constructor
     GameEngine(const GameEngine& other);
 
@@ -77,10 +79,10 @@ public:
     friend std::ostream& operator<<(std::ostream& out, const GameEngine& engine);
 
     // Returns the current state
-    GameState getCurrentState() const;
+    std::string getCurrentState() const;
 
     // Changes the current state
-    void setNewState(GameState newState);
+    void transition(const std::string& newState);
 
     // Returns the loaded map (nullptr if none)
     Map* getMap() const;
