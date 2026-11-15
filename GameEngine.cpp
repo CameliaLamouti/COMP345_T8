@@ -1,6 +1,8 @@
 #include "GameEngine.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <random>
@@ -25,6 +27,9 @@ const size_t GameEngine::MIN_PLAYERS = 2;
 const size_t GameEngine::MAX_PLAYERS = 6;
 const int GameEngine::INITIAL_ARMIES = 50;
 const int GameEngine::INITIAL_CARDS = 2;
+const int GameEngine::MIN_REINFORCEMENT = 3;
+const int GameEngine::TERRITORIES_PER_ARMY = 3;
+const bool GameEngine::CLEAR_SCREEN = true;
 
 const std::string GameEngine::MAP_DIRECTORY = "maps";
 
@@ -117,6 +122,34 @@ void GameEngine::copyGameData(const GameEngine& other) {
     }
 }
 
+// Clears the console (does nothing when CLEAR_SCREEN is false)
+void GameEngine::clearScreen() {
+    if (!CLEAR_SCREEN) {
+        return;
+    }
+#ifdef _WIN32
+    std::system("cls");
+#else
+    std::cout << "\033[2J\033[3J\033[H" << std::flush;
+#endif
+}
+
+// Prints a heading in capital letters between brackets, underlined, after a blank line
+void GameEngine::printHeading(const std::string& title) {
+    std::string upper = title;
+    std::transform(upper.begin(), upper.end(), upper.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    std::cout << std::endl << "[" << upper << "]" << std::endl
+              << std::string(upper.size() + 2, '=') << std::endl;
+}
+
+// Shows a message and waits until the Enter key is pressed (or the input ends)
+void GameEngine::waitForEnter(const std::string& message) {
+    std::cout << std::endl << message << std::flush;
+    std::string line;
+    std::getline(std::cin, line);
+}
+
 // Returns the current state
 std::string GameEngine::getCurrentState() const {
     return *currentState;
@@ -153,7 +186,7 @@ void GameEngine::printAvailableMaps() const {
     }
     std::sort(names.begin(), names.end());
 
-    std::cout << "Available maps:" << std::endl;
+    std::cout << std::endl << "Available maps:" << std::endl;
     if (names.empty()) {
         std::cout << "  (none)" << std::endl;
     }
@@ -267,7 +300,7 @@ void GameEngine::handleGameStart(Command* command) {
     transition(ASSIGN_REINFORCEMENT);
     command->saveEffect("Game started.");
 
-    std::cout << "Order of play:" << std::endl;
+    std::cout << std::endl << "Order of play:" << std::endl;
     for (size_t i = 0; i < players->size(); i++) {
         Player* player = (*players)[i];
         std::cout << "  " << (i + 1) << ". " << player->getName()
@@ -308,4 +341,256 @@ void GameEngine::drawInitialCards() {
             deck->draw(player->getHand());
         }
     }
+}
+
+// Plays rounds until one player owns every territory, then announces the winner.
+// The console is cleared at the start of every phase and every player's turn.
+void GameEngine::mainGameLoop() {
+    if (map == nullptr || players->empty()) {
+        std::cout << std::endl << "Error: the game cannot be played without a map and players." << std::endl;
+        return;
+    }
+
+    refreshPlayerTerritories();
+    removeEliminatedPlayers();
+
+    int rounds = 0;
+    while (true) {
+        Player* winner = getWinner();
+        if (winner != nullptr) {
+            if (rounds > 0) {
+                clearScreen();
+            }
+            printHeading("Game over");
+            std::cout << std::endl << winner->getName()
+                      << " owns every territory and wins the game!" << std::endl;
+            transition(WIN);
+            return;
+        }
+
+        if (std::cin.eof()) {
+            std::cout << std::endl << "The input ended, the game is stopped." << std::endl;
+            return;
+        }
+
+        rounds++;
+        clearScreen();
+        reinforcementPhase();
+        waitForEnter("Press Enter to go to the issue orders phase...");
+
+        issueOrdersPhase();
+
+        executeOrdersPhase();
+        removeEliminatedPlayers();
+        waitForEnter("Press Enter to start the next round...");
+    }
+}
+
+// Gives every player their armies, in the order of play
+void GameEngine::reinforcementPhase() {
+    printHeading("Reinforcement phase");
+    if (*currentState != ASSIGN_REINFORCEMENT) {
+        transition(ASSIGN_REINFORCEMENT);
+    }
+
+    std::cout << std::endl;
+    for (Player* player : *players) {
+        int armies = calculateReinforcement(player);
+        player->setPool(player->getPool() + armies);
+        std::cout << player->getName() << " receives " << armies
+                  << " armies (territories: " << player->getTerritories().size()
+                  << "), pool: " << player->getPool() << std::endl;
+    }
+}
+
+// Asks every player for one order at a time until all of them are done.
+// Every player's turn is shown on a cleared console.
+void GameEngine::issueOrdersPhase() {
+    clearScreen();
+    printHeading("Issue orders phase");
+    transition(ISSUE_ORDERS);
+
+    for (Player* player : *players) {
+        player->resetPlannedArmies();
+    }
+
+    // a player that has no more orders to issue is not asked again this turn
+    std::vector<bool> done(players->size(), false);
+    size_t remaining = players->size();
+    waitForEnter("Press Enter to start the first turn...");
+    while (remaining > 0 && !std::cin.eof()) {
+        for (size_t i = 0; i < players->size(); i++) {
+            if (done[i]) {
+                continue;
+            }
+
+            Player* player = (*players)[i];
+            clearScreen();
+            printHeading(player->getName() + "'s turn");
+            if (!player->issueOrder(*players, deck)) {
+                done[i] = true;
+                remaining--;
+                std::cout << std::endl << player->getName() << " has no more orders this turn." << std::endl;
+            }
+            waitForEnter();
+        }
+    }
+}
+
+// Executes all the deploy orders, then every other order, in round-robin fashion
+void GameEngine::executeOrdersPhase() {
+    clearScreen();
+    printHeading("Execute orders phase");
+    transition(EXECUTE_ORDERS);
+    std::cout << std::endl;
+
+    std::vector<Player*> conquerors;
+
+    // every deploy order is executed before any other kind of order
+    bool executed = true;
+    while (executed) {
+        executed = false;
+        for (Player* player : *players) {
+            OrdersList* orders = player->getOrders();
+            for (int i = 0; i < orders->size(); i++) {
+                if (dynamic_cast<Deploy*>(orders->get(i)) != nullptr) {
+                    executeOrderAt(player, i, conquerors);
+                    executed = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // then the top order of each player's list, one player after the other
+    executed = true;
+    while (executed) {
+        executed = false;
+        for (Player* player : *players) {
+            if (player->getOrders()->size() > 0) {
+                executeOrderAt(player, 0, conquerors);
+                executed = true;
+            }
+        }
+    }
+
+    rewardConquerors(conquerors);
+}
+
+// Executes one order, prints its effect and removes it from the player's list
+void GameEngine::executeOrderAt(Player* player, int index, std::vector<Player*>& conquerors) {
+    OrdersList* orders = player->getOrders();
+    Order* order = orders->get(index);
+
+    // the owners before the order tell whether it conquered a territory
+    std::vector<Territory*> territories = map->getTerritories();
+    std::vector<Player*> ownersBefore;
+    for (Territory* territory : territories) {
+        ownersBefore.push_back(territory->getOwner());
+    }
+
+    std::cout << player->getName() << " executes: " << order->getDescription() << std::endl;
+    order->execute();
+    if (!order->getEffect().empty()) {
+        std::cout << "  " << order->getEffect() << std::endl;
+    }
+
+    refreshPlayerTerritories();
+
+    for (size_t i = 0; i < territories.size(); i++) {
+        if (territories[i]->getOwner() == player && ownersBefore[i] != player) {
+            if (std::find(conquerors.begin(), conquerors.end(), player) == conquerors.end()) {
+                conquerors.push_back(player);
+            }
+            break;
+        }
+    }
+
+    orders->remove(index);
+}
+
+// A player who conquered at least one territory draws exactly one card
+void GameEngine::rewardConquerors(const std::vector<Player*>& conquerors) {
+    if (!conquerors.empty()) {
+        std::cout << std::endl;
+    }
+    for (Player* player : conquerors) {
+        Card* card = deck->draw(player->getHand());
+        if (card != nullptr) {
+            std::cout << player->getName() << " conquered a territory and draws a card: " << *card << std::endl;
+        } else {
+            std::cout << player->getName() << " conquered a territory but the deck is empty." << std::endl;
+        }
+    }
+}
+
+// Territories / 3 (rounded down) plus the bonus of each continent entirely owned, never less than 3
+int GameEngine::calculateReinforcement(const Player* player) const {
+    int armies = static_cast<int>(player->getTerritories().size()) / TERRITORIES_PER_ARMY;
+
+    if (map != nullptr) {
+        for (int i = 0; i < map->getContinentCount(); i++) {
+            Continent* continent = map->getContinentAt(i);
+            std::vector<Territory*> members = continent->getTerritories();
+            if (members.empty()) {
+                continue;
+            }
+            bool ownsAll = true;
+            for (Territory* territory : members) {
+                if (territory->getOwner() != player) {
+                    ownsAll = false;
+                    break;
+                }
+            }
+            if (ownsAll) {
+                armies += continent->getBonus();
+            }
+        }
+    }
+    return std::max(armies, MIN_REINFORCEMENT);
+}
+
+// The map knows the owner of each territory: the players' lists are rebuilt from it
+void GameEngine::refreshPlayerTerritories() {
+    if (map == nullptr) {
+        return;
+    }
+    for (Player* player : *players) {
+        player->clearTerritories();
+    }
+    for (Territory* territory : map->getTerritories()) {
+        Player* owner = territory->getOwner();
+        // the owner can also be the Neutral player, who is not part of the game's players
+        if (std::find(players->begin(), players->end(), owner) != players->end()) {
+            owner->addTerritory(territory);
+        }
+    }
+}
+
+// Deletes the players without territory, the others keep their order of play
+void GameEngine::removeEliminatedPlayers() {
+    refreshPlayerTerritories();
+    for (size_t i = 0; i < players->size();) {
+        Player* player = (*players)[i];
+        if (player->getTerritories().empty()) {
+            std::cout << std::endl << player->getName() << " controls no territory and is removed from the game." << std::endl;
+            delete player;
+            players->erase(players->begin() + i);
+        } else {
+            i++;
+        }
+    }
+}
+
+// The winner owns every territory of the map
+Player* GameEngine::getWinner() const {
+    if (map == nullptr || map->getTerritoryCount() == 0) {
+        return nullptr;
+    }
+    for (Player* player : *players) {
+        if (static_cast<int>(player->getTerritories().size()) == map->getTerritoryCount()) {
+            return player;
+        }
+    }
+    return nullptr;
 }

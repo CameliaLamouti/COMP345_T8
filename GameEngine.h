@@ -33,6 +33,9 @@ public:
     static const size_t MAX_PLAYERS;
     static const int INITIAL_ARMIES;
     static const int INITIAL_CARDS;
+    static const int MIN_REINFORCEMENT;       // minimum armies a player receives each turn
+    static const int TERRITORIES_PER_ARMY;    // territories needed to earn one reinforcement army
+    static const bool CLEAR_SCREEN;           // tells whether clearScreen() really clears the console
 
 private:
     static const std::string MAP_DIRECTORY;   // directory where the map files are stored
@@ -62,6 +65,12 @@ private:
     void giveInitialArmies();
     void drawInitialCards();
 
+    // executes the order at a position of the player's list, then removes it from the list
+    // (a player who conquered a territory is added to conquerors)
+    void executeOrderAt(Player* player, int index, std::vector<Player*>& conquerors);
+    // gives a card to every player who conquered at least one territory this turn
+    void rewardConquerors(const std::vector<Player*>& conquerors);
+
 public:
     // Constructor taking a command processor (not owned)
     explicit GameEngine(CommandProcessor* processor);
@@ -90,8 +99,37 @@ public:
     // Returns the players in order of play
     std::vector<Player*> getPlayers() const;
 
+    // Console helpers used to keep the output readable
+    static void clearScreen();                                                  // Clears the console
+    static void printHeading(const std::string& title);                         // Prints a section heading such as [MAIN GAME LOOP]
+    static void waitForEnter(const std::string& message = "Press Enter to continue..."); // Shows a message and waits for the Enter key
+
     // Reads commands until the game is started (loadmap, validatemap, addplayer, gamestart)
     void startupPhase();
+
+    // Plays rounds of reinforcement, issuing orders and orders execution until one player owns every territory
+    void mainGameLoop();
+
+    // Gives every player the armies they earn this turn
+    void reinforcementPhase();
+
+    // Asks every player for orders in round-robin fashion until nobody has any more to issue
+    void issueOrdersPhase();
+
+    // Executes the orders of every player (deploy orders first) in round-robin fashion
+    void executeOrdersPhase();
+
+    // Returns the armies a player earns this turn: territories / 3 plus the bonus of every continent owned, at least 3
+    int calculateReinforcement(const Player* player) const;
+
+    // Rebuilds the territory list of every player from the owners stored in the map
+    void refreshPlayerTerritories();
+
+    // Removes (and deletes) the players that do not control any territory
+    void removeEliminatedPlayers();
+
+    // Returns the player who owns every territory of the map, nullptr if there is none
+    Player* getWinner() const;
 };
 
 #endif
