@@ -36,6 +36,44 @@ static void reportValidate(const std::string& label, const Order& o) {
               << (o.validate() ? "VALID" : "INVALID") << "\n";
 }
 
+// Executes the first Deploy order found in the player's list (if any).
+// Returns true if a Deploy order was executed.
+static bool executeOneDeploy(Player* player) {
+    OrdersList* orders = player->getOrders();
+    for (int i = 0; i < orders->size(); i++) {
+        if (dynamic_cast<Deploy*>(orders->get(i)) != nullptr) {
+            Order* order = orders->get(i);
+            bool valid = order->validate();
+            order->execute();
+            std::cout << "  " << player->getName() << " executes "
+                      << order->getDescription()
+                      << " -> " << (valid ? "VALID" : "INVALID")
+                      << " | " << order->getEffect() << "\n";
+            orders->remove(i);   // remove() also deletes the order
+            return true;
+        }
+    }
+    return false;
+}
+
+// Executes the first order of the player's list, whatever its kind.
+// Returns true if an order was executed.
+static bool executeOneAny(Player* player) {
+    OrdersList* orders = player->getOrders();
+    if (orders->size() == 0) {
+        return false;
+    }
+    Order* order = orders->get(0);
+    bool valid = order->validate();
+    order->execute();
+    std::cout << "  " << player->getName() << " executes "
+              << order->getDescription()
+              << " -> " << (valid ? "VALID" : "INVALID")
+              << " | " << order->getEffect() << "\n";
+    orders->remove(0);           // remove() also deletes the order
+    return true;
+}
+
 // Frees a set of territories and players created for one demo.
 static void cleanup(Player* a, Player* b,
                     Territory* t1, Territory* t2,
@@ -287,13 +325,15 @@ static void demoBlockade() {
 }
 
 // ------------------------------------------------------------------
-// (6) All orders issued and executed via OrdersList
+// (6) All the orders can be issued by a player and executed similar 
+// to the game engine itself.
 // ------------------------------------------------------------------
 static void demoIssueAndExecute() {
-    section("(6) Issue all orders and execute");
+    section("(6) Orders issued by a player and executed engine-style");
 
     Player* alice = new Player("Alice");
     Player* bob   = new Player("Bob");
+    Deck* deck    = new Deck();
 
     Territory* t1 = new Territory("Alaska", 1);
     Territory* t2 = new Territory("Alberta", 2);
@@ -311,34 +351,69 @@ static void demoIssueAndExecute() {
     t4->setOwner(bob);   bob->addTerritory(t4);
 
     t1->setArmies(20);
-    t2->setArmies(5);
+    t2->setArmies(10);
     t3->setArmies(3);
-    t4->setArmies(3);
+    t4->setArmies(2);
 
-    // Temporary show to the order execution logic
-    // TODO: change it to match that the player is issuing the order
-    //       (see PART 3).
+    // Give the players the cards they need to try the special orders.
+    alice->getHand()->addCard(new Card(CardType::Bomb));
+    alice->getHand()->addCard(new Card(CardType::Airlift));
+    alice->getHand()->addCard(new Card(CardType::Blockade));
+    alice->getHand()->addCard(new Card(CardType::Diplomacy));
 
-    OrdersList list;
-    list.add(new Deploy   (alice, t1, 5));
-    list.add(new Advance  (alice, t1, t2, 5));
-    list.add(new Bomb     (alice, t3));
-    list.add(new Airlift  (alice, t2, t1, 2));
-    list.add(new Blockade (alice, t1));
-    list.add(new Negotiate(alice, bob));
+    std::vector<Player*> players;
+    players.push_back(alice);
+    players.push_back(bob);
 
-    std::cout << "Queued " << list.size() << " orders\n";
-    for (int i = 0; i < list.size(); ++i) {
-        Order* o = list.get(i);
-        bool ok = o->validate();
-        o->execute();
-        std::cout << "  [" << i << "] "
-                  << (ok ? "VALID  " : "INVALID") << " -> "
-                  << o->getEffect() << "\n";
+    // -------- Issue phase: the players issue their orders themselves --------
+    std::cout << "Issue phase (each player's issueOrder() prompts the console).\n"
+                 "Alice has 5 armies in her pool; Bob has 2.\n"
+                 "End every turn with choice 0.\n";
+    alice->setPool(5);
+    bob->setPool(2);
+
+    alice->resetPlannedArmies();
+    while (alice->issueOrder(players, deck)) {
+        // Player::issueOrder keeps asking until the player chooses 0.
     }
 
-    cleanup(alice, bob, t1, t2, t3, t4);
+    bob->resetPlannedArmies();
+    while (bob->issueOrder(players, deck)) {
+    }
+
+    std::cout << "\nAlice's OrdersList:\n" << *alice->getOrders() << "\n";
+    std::cout << "Bob's OrdersList:\n"   << *bob->getOrders()   << "\n";
+
+    // -------- Execute phase: mirrors GameEngine::executeOrdersPhase() --------
+    std::cout << "\nExecute phase (deploy orders first, then the rest):\n";
+
+    // Pass 1: every Deploy order, one player at a time.
+    bool anyDeploy = true;
+    while (anyDeploy) {
+        anyDeploy = false;
+        for (size_t i = 0; i < players.size(); i++) {
+            if (executeOneDeploy(players[i])) {
+                anyDeploy = true;
+            }
+        }
+    }
+
+    // Pass 2: the remaining orders, round-robin.
+    bool anyLeft = true;
+    while (anyLeft) {
+        anyLeft = false;
+        for (size_t i = 0; i < players.size(); i++) {
+            if (executeOneAny(players[i])) {
+                anyLeft = true;
+            }
+        }
+    }
+
+    std::cout << "\nBoth lists are empty now.\n";
+
+    cleanup(alice, bob, t1, t2, t3, t4, deck);   
 }
+
 
 int main() {
 
