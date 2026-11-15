@@ -395,6 +395,7 @@ void GameEngine::reinforcementPhase() {
 
     std::cout << std::endl;
     for (Player* player : *players) {
+        player->clearNegotiations();
         int armies = calculateReinforcement(player);
         player->setPool(player->getPool() + armies);
         std::cout << player->getName() << " receives " << armies

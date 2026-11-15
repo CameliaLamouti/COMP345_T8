@@ -25,12 +25,22 @@ int main() {
     Player* bob = new Player("Bob");
  
     // Alice owns the first four territories, Bob the last two.
-    for (int i = 0; i < 4; ++i) alice->addTerritory(map[i]);
-    for (int i = 4; i < 6; ++i) bob->addTerritory(map[i]);
+    for (int i = 0; i < 4; ++i) {
+        alice->addTerritory(map[i]);
+        map[i]->setOwner(alice);
+        map[i]->setArmies(3);
+    }
+    for (int i = 4; i < 6; ++i) {
+        bob->addTerritory(map[i]);
+        map[i]->setOwner(bob);
+        map[i]->setArmies(2);
+    }
  
-    // Alice may attack Bob's territories.
-    alice->addAttackTarget(map[4]);
-    alice->addAttackTarget(map[5]);
+    // Alice may attack Bob's territories connected to her border.
+    map[0]->addNeighbor(map[4]);
+    map[4]->addNeighbor(map[0]);
+    map[3]->addNeighbor(map[5]);
+    map[5]->addNeighbor(map[3]);
  
     // Players own a hand of cards.
     alice->getHand()->addCard(new Card("bomb"));
@@ -41,17 +51,22 @@ int main() {
     printTerritories("Alice toAttack", alice->toAttack());
  
     std::cout << "\n=== issueOrder() ===" << std::endl;
-    std::cout << "Issue deploy order" << std::endl;
-    alice->issueOrder("deploy");
-    std::cout << "Issue advance order" << std::endl;
-    alice->issueOrder("advance");
-    std::cout << "Issue teleport order (invalid)" << std::endl;
-    alice->issueOrder("teleport");
+    std::vector<Player*> players = {alice, bob};
+    Deck deck;
+    alice->setPool(3);
+    alice->resetPlannedArmies();
+    std::cout << "Issue orders interactively; end the turn with choice 0." << std::endl;
+    while (alice->issueOrder(players, &deck)) {
+    }
     std::cout << *alice << std::endl;
- 
+
     std::cout << "\n=== Copy constructor and assignment operator ===" << std::endl;
     Player copy(*alice);
-    copy.issueOrder("deploy");
+    Order* demonstrationOrder = new Deploy(&copy, map[0], 1);
+    if (!copy.getOrders()->add(demonstrationOrder)) {
+        delete demonstrationOrder;
+        std::cout << "Could not add a demonstration order to the copy." << std::endl;
+    }
     std::cout << "Original orders: " << *alice->getOrders() << std::endl;
     std::cout << "Copy orders:     " << *copy.getOrders() << std::endl;
  

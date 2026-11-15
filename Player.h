@@ -47,6 +47,10 @@ public:
     // The players and the deck are needed by the diplomacy card and by the cards in general.
     bool issueOrder(const std::vector<Player*>& players, Deck* deck);
 
+    void addNegotiation(Player* other);            // Records that this player cannot attack 'other' this turn
+    bool isNegotiatingWith(Player* other) const;   // Tells whether attacks against 'other' are blocked
+    void clearNegotiations();                      // Removes all negotiations (called at the start of a new turn)
+
     friend std::ostream& operator<<(std::ostream& out, const Player& player); // Stream insertion operator
 
 private:
@@ -59,6 +63,7 @@ private:
     Hand* hand;                               // owned
     OrdersList* orders;                       // owned
     int* pool;                                // owned: armies not yet deployed
+    std::vector<Player*>* negotiatedWith;     // owned: players this player is negotiating with this turn
 
     void chooseTargets();                                                            // Asks toDefend() and toAttack() and remembers the answers for this turn
     int getPlannedArmies(Territory* territory) const;                              // Armies that can still be used from a territory

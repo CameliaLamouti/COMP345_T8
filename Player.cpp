@@ -92,7 +92,9 @@ Player::Player(const std::string& name)
     plannedArmies(new std::map<Territory*, int>()),
     hand(new Hand()),
     orders(new OrdersList()),
-    pool(new int(0)){}
+    pool(new int(0)),
+    negotiatedWith(new std::vector<Player*>()){}
+
 
 /**
  * Copy constructor: deep copy of the name, hand, orders and pool.
@@ -107,7 +109,8 @@ Player::Player(const Player& other)
     plannedArmies(new std::map<Territory*, int>(*other.plannedArmies)),
     hand(new Hand(*other.hand)),
     orders(new OrdersList(*other.orders)),
-    pool(new int(*other.pool)){}
+    pool(new int(*other.pool)),
+    negotiatedWith(new std::vector<Player*>(*other.negotiatedWith)){}
 
 /**
  * Assignment operator: same copying rules as the copy constructor,
@@ -124,6 +127,7 @@ Player& Player::operator=(const Player& other){
         *hand = *other.hand;
         *orders = *other.orders;
         *pool = *other.pool;
+        *negotiatedWith = *other.negotiatedWith;
     }
     return *this;
 }
@@ -142,6 +146,7 @@ Player::~Player(){
     delete hand;
     delete orders;
     delete pool;
+    delete negotiatedWith;
 }
 
 /**
@@ -317,6 +322,19 @@ void Player::printTerritories(const std::string& title, const std::vector<Territ
             std::cout << " (available for orders: " << getPlannedArmies(territory) << ")";
         }
         std::cout << std::endl;
+    }
+}
+
+/**
+ * Records that this player has agreed not to attack 'other' this turn.
+ * Ignores null pointers, self-negotiation and duplicates.
+ */
+void Player::addNegotiation(Player* other){
+    if (other == nullptr || other == this){
+        return;
+    }
+    if (!isNegotiatingWith(other)){
+        negotiatedWith->push_back(other);
     }
 }
 
@@ -658,6 +676,21 @@ bool Player::issueOrder(const std::vector<Player*>& players, Deck* deck){
             return true;
         }
     }
+}
+
+/**
+ * Tells whether is this player is currently negotiating with 'other'.
+ */
+bool Player::isNegotiatingWith(Player* other) const{
+   for (Player* p : *negotiatedWith){
+        if (p == other)
+            return true;
+   }
+   return false;
+}
+
+void Player::clearNegotiations(){
+    negotiatedWith->clear();
 }
 
 /**
