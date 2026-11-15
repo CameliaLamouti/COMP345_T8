@@ -38,6 +38,10 @@ public:
     std::vector<Territory*> toAttack() const;      // Returns the territories to be attacked
     bool issueOrder(const std::string& orderType); // Creates an order and adds it to the player's list of orders
 
+    void addNegotiation(Player* other);            // Records that this player cannot attack 'other' this turn
+    bool isNegotiatingWith(Player* other) const;   // Tells whether attacks against 'other' are blocked
+    void clearNegotiations();                      // Removes all negotiations (called at the start of a new turn)
+
     friend std::ostream& operator<<(std::ostream& out, const Player& player); // Stream insertion operator
 
 private:
@@ -47,6 +51,7 @@ private:
     Hand* hand;                               // owned
     OrdersList* orders;                       // owned
     int* pool;                                // owned: armies not yet deployed
+    std::vector<Player*>* negotiatedWith;     // owned: players this player is negotiating with this turn
 };
 
 #endif // PLAYER_H

@@ -14,7 +14,9 @@ Player::Player(const std::string& name)
     attackTargets(new std::vector<Territory*>()),
     hand(new Hand()),
     orders(new OrdersList()),
-    pool(new int(0)){}
+    pool(new int(0)),
+    negotiatedWith(new std::vector<Player*>()){}
+
 
 /**
  * Copy constructor: deep copy of the name, hand, orders and pool.
@@ -26,7 +28,8 @@ Player::Player(const Player& other)
     attackTargets(new std::vector<Territory*>(*other.attackTargets)),
     hand(new Hand(*other.hand)),
     orders(new OrdersList(*other.orders)),
-    pool(new int(*other.pool)){}
+    pool(new int(*other.pool)),
+    negotiatedWith(new std::vector<Player*>(*other.negotiatedWith)){}
 
 /**
  * Assignment operator: same copying rules as the copy constructor,
@@ -40,6 +43,7 @@ Player& Player::operator=(const Player& other){
         *hand = *other.hand;
         *orders = *other.orders;
         *pool = *other.pool;
+        *negotiatedWith = *other.negotiatedWith;
     }
     return *this;
 }
@@ -55,6 +59,7 @@ Player::~Player(){
     delete hand;
     delete orders;
     delete pool;
+    delete negotiatedWith;
 }
 
 /**
@@ -154,6 +159,34 @@ bool Player::issueOrder(const std::string& orderType){
         return false;
     }
     return true;
+}
+
+/**
+ * Records that this player has agreed not to attack 'other' this turn.
+ * Ignores null pointers, self-negotiation and duplicates.
+ */
+void Player::addNegotiation(Player* other){
+    if (other == nullptr || other == this){
+        return;
+    }
+    if (!isNegotiatingWith(other)){
+        negotiatedWith->push_back(other);
+    }
+}
+
+/**
+ * Tells whether is this player is currently negotiating with 'other'.
+ */
+bool Player::isNegotiatingWith(Player* other) const{
+   for (Player* p : *negotiatedWith){
+        if (p == other)
+            return true;
+   }
+   return false;
+}
+
+void Player::clearNegotiations(){
+    negotiatedWith->clear();
 }
 
 /**

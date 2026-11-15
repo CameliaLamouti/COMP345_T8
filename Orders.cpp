@@ -1,7 +1,7 @@
 // Orders.cpp
-// COMP 345 - Assignment 1 - Part 3
-// Deploy, Advance, Bomb, Blockade and Airlift change the game state when executed;
-// Negotiate only records its effect.
+// COMP 345 - Assignment 2 - Part 4: Orders
+// Deploy, Advance, Bomb, Blockade, Airlift, and Negotiate change the game state when executed
+// following the original Warzone rules.
 
 #include "Orders.h"
 #include "Map.h"
@@ -137,16 +137,16 @@ std::string Deploy::getDescription() const {
 
 // Default constructor: intializes pointers to nullptr and alocates a new int for armies at 0.
 Advance::Advance()
-    : Order(), player(nullptr), from(nullptr), to(nullptr), armies(new int(0)) {}
+    : Order(), player(nullptr), from(nullptr), to(nullptr), armies(new int(0)), conquered(new bool(false)) {}
 
 // Parameterized constructor: initalizes members with provided arguments and allocates a new int for armies with provided value.
 Advance::Advance(Player* player, Territory* from, Territory* to, int armies)
-    : Order(), player(player), from(from), to(to), armies(new int(armies)) {}
+    : Order(), player(player), from(from), to(to), armies(new int(armies)), conquered(new bool(false)) {}
 
 // Copy constructor: calls base class copy constructor, copies the pointer values, and deep copies armies by allocating a new int.
 Advance::Advance(const Advance& other)
     : Order(other), player(other.player), from(other.from), to(other.to),
-      armies(new int(*other.armies)) {}
+      armies(new int(*other.armies)), conquered(new bool(*other.conquered)) {}
 
 /// @brief Assignment operator for Advance: checks for self assignment then calls base class assignment operator. Copies pointers and deep copies armies.
 /// @param other The Advance object.
@@ -158,12 +158,13 @@ Advance& Advance::operator=(const Advance& other) {
         from    = other.from;
         to      = other.to;
         *armies = *other.armies;
+        *conquered = *other.conquered;
     }
     return *this;
 }
 
 // Destructor: frees the dynamically allocated armies.
-Advance::~Advance() { delete armies; }
+Advance::~Advance() { delete armies; delete conquered; }
 
 /// @brief Validates the Advance order -- checks if the army is a valid size or follows suit with the rules.
 /// @return True if valid, false otherwise
@@ -173,11 +174,15 @@ bool Advance::validate() const {
     if (from->getOwner() != player)     return false; 
     if (!from->isNeighborTo(to))         return false;
     if (*armies > from->getArmies())   return false;
+    if(to->getOwner() != nullptr && player->isNegotiatingWith(to->getOwner()))
+        return false;
     return true;
 }
 
 /// @brief Executes the Advance order -- Checks if the Territory exists and will simulate the battle.
 void Advance::execute() {
+    *conquered = false;
+
     if (!validate()) {
         setEffect("invalid order (not executed)");
         return;
@@ -209,6 +214,7 @@ void Advance::execute() {
             // Every defender died: the surviving attackers occupy the territory.
             to->setOwner(player);
             to->setArmies(atkLeft);
+            *conquered = true;
             oss << "attack on " << to->getName() << " succeeded: captured with "
                 << atkLeft << " armies";
         } else {
@@ -232,6 +238,10 @@ std::string Advance::getDescription() const {
     oss << "Advance " << *armies << " armies";
     return oss.str();
 }
+
+/// @brief Tells whether the last execute() captured a territory. Used by game engine to award a card.
+/// @return True if conquered this turn, False otherwise.
+bool Advance::didConquer() const { return *conquered; }
 
 // ============================================================
 // Bomb implementation
@@ -272,16 +282,13 @@ Bomb::~Bomb() {}
 bool Bomb::validate() const {  
     if (!player || !target)               return false;
     if (target->getOwner() == player)     return false; 
-    bool ownsAdjacent = false;
+
     for(Territory* t : player->getTerritories()){
         if(t->isNeighborTo(target)){
-            ownsAdjacent = true;
+            return true;
         }
     }
-    if(!ownsAdjacent) 
-        return false;
-    else
-        return true;
+    return false;
 }
 
 /// @brief Executes Bomb order and sets its effect.
@@ -308,7 +315,7 @@ std::string Bomb::getDescription() const { return "Bomb"; }
 // Blockade implementation
 //
 // Brief Description:
-// Triple the number of armies on one of the current player’s territories and make it a neutral territory. 
+// Doubles the number of armies on one of the current player’s territories and make it a neutral territory. 
 // ============================================================
 
 // Default constructor: initializes pointers to nullptr.
@@ -352,10 +359,10 @@ void Blockade::execute() {
         return;
     }
 
-    target->setArmies(target->getArmies() * 3);
+    target->setArmies(target->getArmies() * 2);
     target->setOwner(nullptr);
     std::ostringstream oss;
-    oss << "blockaded " << target->getName() << ": armies tripled to "
+    oss << "blockaded " << target->getName() << ": armies doubled to "
         << target->getArmies() << ", territory is now neutral";
     setEffect(oss.str());
 }
@@ -410,7 +417,7 @@ bool Airlift::validate() const {
     if (!armies || *armies <= 0) return false;
 
     if (!player || !from || !to)       return false;
-    if (from->getOwner() != player)    return false;
+    if (from->getOwner() != player || to->getOwner() != player)    return false;
     if (*armies > from->getArmies())   return false;
     return true;
 }
@@ -490,7 +497,10 @@ void Negotiate::execute() {
         return;
     }
 
-    setEffect("PLACEHOLDER - would negotiate (no game state changed)");
+    player->addNegotiation(otherPlayer);
+    otherPlayer->addNegotiation(player);
+    setEffect("negotiated: attacks between " + player->getName()
+            + " and " + otherPlayer->getName() + " are invalid this turn");
 }
 
 /// @brief Deep copy helper that is used by OrdersList.

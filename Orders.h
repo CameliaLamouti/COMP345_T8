@@ -1,5 +1,5 @@
 // Orders.h
-// COMP 345 - Assignment 1 - Part 3: Orders List
+// COMP 345 - Assignment 2 - Part 4 : Orders
 // Does NOT #include Player.h or Map.h.
 // Player and Territory are pre-declared so the interface is ready for Parts 1 & 2. 
 // When those parts exist, only the TODO bodies in Orders.cpp need to be filled in - nothing in this header changes.
@@ -75,11 +75,14 @@ public:
     Order*      newCopy() const;
     std::string getDescription() const;
 
+    bool didConquer() const;
+
 private:
     Player*    player;
     Territory* from;
     Territory* to;
     int*       armies;
+    bool*      conquered;
 };
 
 // ============================================================
