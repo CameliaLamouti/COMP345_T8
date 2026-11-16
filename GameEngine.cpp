@@ -41,14 +41,18 @@ static std::mt19937& randomGenerator() {
 
 // Constructor: starts in the start state with no map and no players
 GameEngine::GameEngine(CommandProcessor* processor) :
+    Subject(),
+    ILoggable(),
     currentState(new std::string(START)),
     commandProcessor(processor),
     map(nullptr),
     players(new std::vector<Player*>()),
     deck(new Deck()) {}
 
-// Copy constructor: deep copy, the command processor is shared
+// Copy constructor: deep copy, the command processor and the observers are shared
 GameEngine::GameEngine(const GameEngine& other) :
+    Subject(other),
+    ILoggable(other),
     currentState(new std::string(*other.currentState)),
     commandProcessor(other.commandProcessor),
     map(nullptr),
@@ -67,6 +71,7 @@ GameEngine::~GameEngine() {
 // Assignment operator: deep copy with a self-assignment check
 GameEngine& GameEngine::operator=(const GameEngine& other) {
     if (this != &other) {
+        Subject::operator=(other);
         clearGameData();
         *currentState = *other.currentState;
         commandProcessor = other.commandProcessor;
@@ -155,11 +160,17 @@ std::string GameEngine::getCurrentState() const {
     return *currentState;
 }
 
-// Changes the current state and prints the transition
+// Changes the current state, prints the transition and notifies the log observer (Part 5)
 void GameEngine::transition(const std::string& newState) {
     std::cout << "Transition: " << *currentState
               << " -> " << newState << std::endl;
     *currentState = newState;
+    Notify(this);
+}
+
+// Part 5: line written in the game log, e.g. "Game Engine new state: maploaded"
+std::string GameEngine::stringToLog() const {
+    return "Game Engine new state: " + *currentState;
 }
 
 // Returns the loaded map (nullptr if none)
@@ -281,7 +292,10 @@ void GameEngine::handleAddPlayer(Command* command) {
         }
     }
 
-    players->push_back(new Player(argument));
+    Player* player = new Player(argument);
+    // Part 5: the player's orders are logged by the same observers as the engine
+    attachObserversTo(player->getOrders());
+    players->push_back(player);
     transition(PLAYERS_ADDED);
     command->saveEffect("Player '" + argument + "' added (" + std::to_string(players->size()) + " in game).");
 }

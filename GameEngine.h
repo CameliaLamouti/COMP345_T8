@@ -5,6 +5,8 @@
 #include <vector>
 #include <iostream>
 
+#include "LoggingObserver.h"
+
 class Map;
 class Player;
 class Deck;
@@ -15,8 +17,10 @@ class FileCommandProcessorAdapter;
 /**
  * GameEngine class
  * Controls the flow of the Warzone game using states and transitions.
+ * Part 5: the GameEngine is a Subject and an ILoggable, transition() notifies
+ * the log observer with the new state.
  */
-class GameEngine {
+class GameEngine : public Subject, public ILoggable {
 public:
     // States of the game
     static const std::string START;
@@ -90,8 +94,11 @@ public:
     // Returns the current state
     std::string getCurrentState() const;
 
-    // Changes the current state
+    // Changes the current state and notifies the log observer (Part 5)
     void transition(const std::string& newState);
+
+    // Part 5: line written in the game log when the state changes
+    std::string stringToLog() const override;
 
     // Returns the loaded map (nullptr if none)
     Map* getMap() const;

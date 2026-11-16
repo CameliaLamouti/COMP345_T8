@@ -6,8 +6,11 @@
 #include <fstream>
 #include <iostream>
 
-// Holds one command and its effect
-class Command {
+#include "LoggingObserver.h"
+
+// Holds one command and its effect.
+// Part 5: a Command is a Subject and an ILoggable, saveEffect() notifies the log observer.
+class Command : public Subject, public ILoggable {
 private:
     std::string* command;
     std::string* argument;
@@ -30,6 +33,9 @@ public:
     bool hasArgument() const;
     // Returns the command and its argument as typed
     std::string getCommandText() const;
+
+    // Part 5: line written in the game log when the effect is saved
+    std::string stringToLog() const override;
 };
 
 // Reads lines from a file (used by the adapter)
@@ -48,8 +54,9 @@ public:
     bool isOpen() const;
 };
 
-// Reads commands from console and stores them
-class CommandProcessor {
+// Reads commands from console and stores them.
+// Part 5: a CommandProcessor is a Subject and an ILoggable, saveCommand() notifies the log observer.
+class CommandProcessor : public Subject, public ILoggable {
 public:
     // The names of the commands
     static const std::string LOAD_MAP;
@@ -78,6 +85,9 @@ public:
 
     // Returns the state a command leads to from a state, empty if the command is not valid there
     std::string getNextState(const std::string& commandName, const std::string& currentState) const;
+
+    // Part 5: line written in the game log when a command is saved
+    std::string stringToLog() const override;
 };
 
 // Adapter that reads commands from a file instead

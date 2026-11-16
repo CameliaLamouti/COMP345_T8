@@ -11,22 +11,31 @@
 #include <iostream>
 #include <sstream>
 
+/// @brief Returns the Neutral player that receives the blockaded territories. It is created
+///        the first time a blockade needs it, and destroyed automatically when the program ends.
+static Player* neutralPlayer() {
+    static Player neutral("Neutral");
+    return &neutral;
+}
+
 // ============================================================
 // Order (base) implementation
 // ============================================================
 
 // Default constructor: allocate an empty effect string on the heap.
-Order::Order() : effect(new std::string()) {}
+Order::Order() : Subject(), ILoggable(), effect(new std::string()) {}
 
-// Copy constructor: deep copy the effect string.
-Order::Order(const Order& other) : effect(new std::string(*other.effect)) {}
+// Copy constructor: deep copy the effect string. The copy is watched by the same observers (Part 5).
+Order::Order(const Order& other) : Subject(other), ILoggable(other), effect(new std::string(*other.effect)) {}
 
 /// @brief Assignment operator for Order: deep copy with self-assignment check.
 /// @param other The Order object.
 /// @return The current Order object.
 Order& Order::operator=(const Order& other) {
-    if (this != &other)
+    if (this != &other) {
+        Subject::operator=(other);
         *effect = *other.effect;
+    }
     return *this;
 }
 
@@ -40,6 +49,12 @@ void Order::setEffect(const std::string& e) { *effect = e; }
 /// @brief Getter for effect
 /// @return The string for the effect
 std::string Order::getEffect() const { return *effect; }
+
+/// @brief Part 5: line written in the game log when the order is executed.
+/// @return e.g. "Order Executed: Deploy 5 armies -> deployed 5 armies to Alaska (now 20)"
+std::string Order::stringToLog() const {
+    return "Order Executed: " + getDescription() + " -> " + getEffect();
+}
 
 /// @brief Stream inseration operator: Prints order description and the effect if it executed.
 /// @param out The output stream object.
@@ -104,6 +119,7 @@ bool Deploy::validate() const {
 void Deploy::execute() {
     if (!validate()) {
         setEffect("invalid order (not executed)");
+        Notify(this);   // Part 5: log the effect of the order
         return;
     }
 
@@ -112,10 +128,16 @@ void Deploy::execute() {
     oss << "deployed " << *armies << " armies to " << target->getName()
         << " (now " << target->getArmies() << ")";
     setEffect(oss.str());
+    Notify(this);   // Part 5: log the effect of the order
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
 Order* Deploy::newCopy() const { return new Deploy(*this); }
+
+/// @brief Stream insertion operator: prints the description and the effect, like any order.
+std::ostream& operator<<(std::ostream& out, const Deploy& order) {
+    return out << static_cast<const Order&>(order);
+}
 
 /// @brief Displays the description of the deploy order.
 /// @return The string that displays the description of the order.
@@ -185,6 +207,7 @@ void Advance::execute() {
 
     if (!validate()) {
         setEffect("invalid order (not executed)");
+        Notify(this);   // Part 5: log the effect of the order
         return;
     }
     std::ostringstream oss;
@@ -226,10 +249,16 @@ void Advance::execute() {
         }
     }
     setEffect(oss.str());
+    Notify(this);   // Part 5: log the effect of the order
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
 Order* Advance::newCopy() const { return new Advance(*this); }
+
+/// @brief Stream insertion operator: prints the description and the effect, like any order.
+std::ostream& operator<<(std::ostream& out, const Advance& order) {
+    return out << static_cast<const Order&>(order);
+}
 
 /// @brief Advance order description.
 /// @return The string that contains the Advance order description.
@@ -295,6 +324,7 @@ bool Bomb::validate() const {
 void Bomb::execute() {
     if (!validate()) {
         setEffect("invalid order (not executed)");
+        Notify(this);   // Part 5: log the effect of the order
         return;
     }
     target->setArmies(target->getArmies() / 2);
@@ -302,10 +332,16 @@ void Bomb::execute() {
     oss << "bombed " << target->getName() << ": armies halved to "
         << target->getArmies();
     setEffect(oss.str());
+    Notify(this);   // Part 5: log the effect of the order
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
 Order* Bomb::newCopy() const { return new Bomb(*this); }
+
+/// @brief Stream insertion operator: prints the description and the effect, like any order.
+std::ostream& operator<<(std::ostream& out, const Bomb& order) {
+    return out << static_cast<const Order&>(order);
+}
 
 /// @brief Description of the Bomb order.
 /// @return String that represents the Bomb order.
@@ -315,7 +351,7 @@ std::string Bomb::getDescription() const { return "Bomb"; }
 // Blockade implementation
 //
 // Brief Description:
-// Doubles the number of armies on one of the current player’s territories and make it a neutral territory. 
+// Doubles the number of armies on one of the current player’s territories and gives it to the Neutral player. 
 // ============================================================
 
 // Default constructor: initializes pointers to nullptr.
@@ -356,19 +392,26 @@ bool Blockade::validate() const {
 void Blockade::execute() {
     if (!validate()) {
         setEffect("invalid order (not executed)");
+        Notify(this);   // Part 5: log the effect of the order
         return;
     }
 
     target->setArmies(target->getArmies() * 2);
-    target->setOwner(nullptr);
+    target->setOwner(neutralPlayer());   // ownership goes to the Neutral player
     std::ostringstream oss;
     oss << "blockaded " << target->getName() << ": armies doubled to "
-        << target->getArmies() << ", territory is now neutral";
+        << target->getArmies() << ", the territory now belongs to the Neutral player";
     setEffect(oss.str());
+    Notify(this);   // Part 5: log the effect of the order
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
 Order* Blockade::newCopy() const { return new Blockade(*this); }
+
+/// @brief Stream insertion operator: prints the description and the effect, like any order.
+std::ostream& operator<<(std::ostream& out, const Blockade& order) {
+    return out << static_cast<const Order&>(order);
+}
 
 /// @brief Grabs the description of Blockade order.
 /// @return The string that represents the Blockade order.
@@ -426,6 +469,7 @@ bool Airlift::validate() const {
 void Airlift::execute() {
     if (!validate()) {
         setEffect("invalid order (not executed)");
+        Notify(this);   // Part 5: log the effect of the order
         return;
     }
   
@@ -435,10 +479,16 @@ void Airlift::execute() {
     oss << "airlifted " << *armies << " armies from " << from->getName()
         << " to " << to->getName();
     setEffect(oss.str());
+    Notify(this);   // Part 5: log the effect of the order
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
 Order* Airlift::newCopy() const { return new Airlift(*this); }
+
+/// @brief Stream insertion operator: prints the description and the effect, like any order.
+std::ostream& operator<<(std::ostream& out, const Airlift& order) {
+    return out << static_cast<const Order&>(order);
+}
 
 /// @brief Grabs the description of Airlift object.
 /// @return The string that represents the Airlift order.
@@ -494,6 +544,7 @@ bool Negotiate::validate() const {
 void Negotiate::execute() {
     if (!validate()) {
         setEffect("invalid order (not executed)");
+        Notify(this);   // Part 5: log the effect of the order
         return;
     }
 
@@ -501,10 +552,16 @@ void Negotiate::execute() {
     otherPlayer->addNegotiation(player);
     setEffect("negotiated: attacks between " + player->getName()
             + " and " + otherPlayer->getName() + " are invalid this turn");
+    Notify(this);   // Part 5: log the effect of the order
 }
 
 /// @brief Deep copy helper that is used by OrdersList.
 Order* Negotiate::newCopy() const { return new Negotiate(*this); }
+
+/// @brief Stream insertion operator: prints the description and the effect, like any order.
+std::ostream& operator<<(std::ostream& out, const Negotiate& order) {
+    return out << static_cast<const Order&>(order);
+}
 
 /// @brief Grabs the description of the Negotiate object.
 /// @return The string that represents the Negotiate order.
@@ -516,7 +573,8 @@ std::string Negotiate::getDescription() const { return "Negotiate"; }
 
 // Default constructor: allocates static array of Order* pointers, initializes count to 0, capacity to DEFAULT_CAPACITY and sets all array slots to nullptr.
 OrdersList::OrdersList()
-    : orders(new Order*[DEFAULT_CAPACITY]),
+    : Subject(), ILoggable(),
+      orders(new Order*[DEFAULT_CAPACITY]),
       count(new int(0)),
       cap(new int(DEFAULT_CAPACITY))
 {
@@ -525,7 +583,8 @@ OrdersList::OrdersList()
 
 // Copy constructor: A deep copy that allocates a new array of the same capacity, copies count/cap and iterates through the other list call newCopy() on each Order.
 OrdersList::OrdersList(const OrdersList& other)
-    : orders(new Order*[*other.cap]),
+    : Subject(other), ILoggable(other),
+      orders(new Order*[*other.cap]),
       count(new int(*other.count)),
       cap(new int(*other.cap))
 {
@@ -539,6 +598,7 @@ OrdersList::OrdersList(const OrdersList& other)
 /// @return The current OrderList object.
 OrdersList& OrdersList::operator=(const OrdersList& other) {
     if (this != &other) {
+        Subject::operator=(other);
         for (int i = 0; i < *count; ++i) delete orders[i];
         delete[] orders;
 
@@ -559,14 +619,31 @@ OrdersList::~OrdersList() {
     delete cap;
 }
 
-/// @brief Adds an order to the order list.
+/// @brief Adds an order at the end of the order list, then notifies the log observer (Part 5).
+///        The order gets the list's observers, so its effect is logged when it is executed.
 /// @param order The order to add to the list.
 /// @return True if successful, false otherwise.
-bool OrdersList::add(Order* order) {
+bool OrdersList::addOrder(Order* order) {
     if (!order || *count >= *cap) return false;
     orders[*count] = order;
     ++(*count);
+    attachObserversTo(order);
+    Notify(this);
     return true;
+}
+
+/// @brief Adds an order to the order list. Same as addOrder(), kept so existing calls keep working.
+/// @param order The order to add to the list.
+/// @return True if successful, false otherwise.
+bool OrdersList::add(Order* order) {
+    return addOrder(order);
+}
+
+/// @brief Part 5: line written in the game log when an order is added to the list.
+/// @return e.g. "Order Issued: Deploy 5 armies"
+std::string OrdersList::stringToLog() const {
+    if (*count == 0) return "Order Issued: (none)";
+    return "Order Issued: " + orders[*count - 1]->getDescription();
 }
 
 /// @brief Removes an order on the order list

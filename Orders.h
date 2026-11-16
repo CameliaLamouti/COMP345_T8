@@ -10,13 +10,17 @@
 #include <ostream>
 #include <string>
 
+#include "LoggingObserver.h"
+
 class Player;      // Part 2 -  pre-declared
 class Territory;   // Part 1 -  pre-declared
 
 // ============================================================
 // Order : Abstract base class.
+// Part 5: an Order is a Subject and an ILoggable. Every execute() calls
+// Notify(this) after recording its effect, so the effect is logged.
 // ============================================================
-class Order {
+class Order : public Subject, public ILoggable {
 public:
     Order(); // Default constructor
     Order(const Order& other); // Copy constructor
@@ -30,6 +34,9 @@ public:
 
     void setEffect(const std::string& e);
     std::string getEffect() const;
+
+    // Part 5: line written in the game log when the order is executed
+    std::string stringToLog() const override;
 
     friend std::ostream& operator<<(std::ostream& out, const Order& o); // Stream insertion operator
 
@@ -52,6 +59,8 @@ public:
     void        execute();
     Order*      newCopy() const;
     std::string getDescription() const;
+
+    friend std::ostream& operator<<(std::ostream& out, const Deploy& order); // Stream insertion operator
 
 private:
     Player*    player;   // Part 2 - not owned
@@ -77,6 +86,8 @@ public:
 
     bool didConquer() const;
 
+    friend std::ostream& operator<<(std::ostream& out, const Advance& order); // Stream insertion operator
+
 private:
     Player*    player;
     Territory* from;
@@ -101,13 +112,15 @@ public:
     Order*      newCopy() const;
     std::string getDescription() const;
 
+    friend std::ostream& operator<<(std::ostream& out, const Bomb& order); // Stream insertion operator
+
 private:
     Player*    player;
     Territory* target;
 };
 
 // ============================================================
-// Blockade : Triple the armies on own territory and make it neutral.
+// Blockade : Double the armies on own territory and give it to the Neutral player.
 // ============================================================
 class Blockade : public Order {
 public:
@@ -121,6 +134,8 @@ public:
     void        execute();
     Order*      newCopy() const;
     std::string getDescription() const;
+
+    friend std::ostream& operator<<(std::ostream& out, const Blockade& order); // Stream insertion operator
 
 private:
     Player*    player;
@@ -142,6 +157,8 @@ public:
     void        execute();
     Order*      newCopy() const;
     std::string getDescription() const;
+
+    friend std::ostream& operator<<(std::ostream& out, const Airlift& order); // Stream insertion operator
 
 private:
     Player*    player;
@@ -166,6 +183,8 @@ public:
     Order*      newCopy() const;
     std::string getDescription() const;
 
+    friend std::ostream& operator<<(std::ostream& out, const Negotiate& order); // Stream insertion operator
+
 private:
     Player* player;
     Player* otherPlayer;
@@ -173,8 +192,10 @@ private:
 
 // ============================================================
 // OrdersList : Owns a collection of Order*  (fixed capacity).
+// Part 5: an OrdersList is a Subject and an ILoggable. addOrder() calls
+// Notify(this), so every order put in the list is logged.
 // ============================================================
-class OrdersList {
+class OrdersList : public Subject, public ILoggable {
 public:
     static const int DEFAULT_CAPACITY = 32; // Max orders list -- can be adjusted for better memory management.
 
@@ -183,12 +204,16 @@ public:
     OrdersList& operator=(const OrdersList& other); // Assignment operator overload
     ~OrdersList();
 
-    bool   add(Order* order);
+    bool   addOrder(Order* order);   // Adds an order at the end of the list and notifies the log observer (Part 5)
+    bool   add(Order* order);        // Same as addOrder(), kept so existing calls keep working
     bool   remove(int index);
     bool   move(int from, int to);
     int    size() const;
     int    capacity() const;
     Order* get(int index) const;
+
+    // Part 5: line written in the game log when an order is added
+    std::string stringToLog() const override;
 
     friend std::ostream& operator<<(std::ostream& out, const OrdersList& list); // Stream insertion operator
 
