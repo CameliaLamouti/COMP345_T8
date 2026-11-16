@@ -18,7 +18,7 @@ static std::string trim(const std::string& text) {
 }
 
 //Command
-Command::Command(std::string cmd) {
+Command::Command(std::string cmd) : Subject(), ILoggable() {
     cmd = trim(cmd);
     size_t split = cmd.find_first_of(" \t");
 
@@ -27,7 +27,8 @@ Command::Command(std::string cmd) {
     effect = new std::string("");
 }
 
-Command::Command(const Command& other) {
+// Copy constructor: the copy is also watched by the same observers (Part 5)
+Command::Command(const Command& other) : Subject(other), ILoggable(other) {
     command = new std::string(*(other.command));
     argument = new std::string(*(other.argument));
     effect = new std::string(*(other.effect));
@@ -35,6 +36,7 @@ Command::Command(const Command& other) {
 
 Command& Command::operator=(const Command& other) {
     if (this != &other) {
+        Subject::operator=(other);
         *command = *(other.command);
         *argument = *(other.argument);
         *effect = *(other.effect);
@@ -53,8 +55,15 @@ std::ostream& operator<<(std::ostream& out, const Command& c) {
     return out;
 }
 
+// Saves the effect of the command, then notifies the log observer (Part 5)
 void Command::saveEffect(std::string eff) {
     *effect = eff;
+    Notify(this);
+}
+
+// Part 5: line written in the game log, e.g. "Command's Effect: [loadmap europe.map] Map 'europe.map' loaded."
+std::string Command::stringToLog() const {
+    return "Command's Effect: [" + getCommandText() + "] " + *effect;
 }
 
 std::string Command::getCommand() const {
@@ -129,11 +138,12 @@ const std::string CommandProcessor::GAME_START = "gamestart";
 const std::string CommandProcessor::REPLAY = "replay";
 const std::string CommandProcessor::QUIT = "quit";
 
-CommandProcessor::CommandProcessor() {
+CommandProcessor::CommandProcessor() : Subject(), ILoggable() {
     commands = new std::vector<Command*>();
 }
 
-CommandProcessor::CommandProcessor(const CommandProcessor& other) {
+// Copy constructor: the copy is also watched by the same observers (Part 5)
+CommandProcessor::CommandProcessor(const CommandProcessor& other) : Subject(other), ILoggable(other) {
     commands = new std::vector<Command*>();
     for (Command* c : *(other.commands)) {
         commands->push_back(new Command(*c));
@@ -142,6 +152,7 @@ CommandProcessor::CommandProcessor(const CommandProcessor& other) {
 
 CommandProcessor& CommandProcessor::operator=(const CommandProcessor& other) {
     if (this != &other) {
+        Subject::operator=(other);
         for (Command* c : *commands) delete c;
         delete commands;
 
@@ -175,8 +186,19 @@ std::string CommandProcessor::readCommand() {
     }
 }
 
+// Saves the command, then notifies the log observer (Part 5).
+// The new command gets the processor's observers so its effect is logged too.
 void CommandProcessor::saveCommand(std::string cmd) {
-    commands->push_back(new Command(cmd));
+    Command* command = new Command(cmd);
+    attachObserversTo(command);
+    commands->push_back(command);
+    Notify(this);
+}
+
+// Part 5: line written in the game log, e.g. "Command: loadmap europe.map"
+std::string CommandProcessor::stringToLog() const {
+    if (commands->empty()) return "Command: (none)";
+    return "Command: " + commands->back()->getCommandText();
 }
 
 Command* CommandProcessor::getCommand() {
