@@ -4,37 +4,50 @@ Run these commands from the repository's root in Command Prompt.
 
 ### Map
 ```cmd
-g++ MapDriver.cpp Map.cpp Player.cpp Cards.cpp Orders.cpp -o map
+g++ MapDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o map
 map.exe
 ```
 
 ### Player
 ```cmd
-g++ PlayerDriver.cpp Player.cpp Cards.cpp Orders.cpp Map.cpp -o player
+g++ PlayerDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o player
 player.exe
 ```
 
 ### Orders
 ```cmd
-g++ Orders.cpp OrdersDriver.cpp Map.cpp Player.cpp Cards.cpp -o orders
+g++ OrdersDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o orders
 orders.exe
 ```
 
 ### Cards
 ```cmd
-g++ Cards.cpp CardsDriver.cpp Player.cpp Orders.cpp Map.cpp -o cards
+g++ CardsDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o cards
 cards.exe
 ```
 
 ### Game Engine
 ```cmd
-g++ GameEngineDriver.cpp GameEngine.cpp CommandProcessing.cpp Cards.cpp Orders.cpp Map.cpp Player.cpp -o game_engine
+g++ GameEngineDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o game_engine
 game_engine.exe
 ```
 
 ### Command Processing
 ```cmd
-g++ CommandProcessingDriver.cpp CommandProcessing.cpp GameEngine.cpp Cards.cpp Orders.cpp Map.cpp Player.cpp -o command_processing
+g++ CommandProcessingDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o command_processing
 command_processing.exe -file commands.txt
 command_processing.exe -console
+```
+
+### Logging Observer
+```cmd
+g++ LoggingObserverDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o logging_observer
+logging_observer.exe -file part5commands.txt
+logging_observer.exe -console
+```
+
+### Player Strategies
+```cmd
+g++ PlayerStrategiesDriver.cpp Map.cpp Player.cpp PlayerStrategies.cpp Cards.cpp Orders.cpp GameEngine.cpp CommandProcessing.cpp LoggingObserver.cpp -o player_strategies
+player_strategies.exe
 ```

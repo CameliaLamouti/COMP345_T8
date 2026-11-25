@@ -14,6 +14,7 @@
 #include "Orders.h"
 
 class Territory;
+class PlayerStrategy;
 
 /**
  * Player owns a hand of cards, a list of orders, a pool of armies
@@ -37,15 +38,18 @@ public:
     int getPool() const;                           // Returns the number of armies waiting to be deployed
     void setPool(int armies);                      // Sets the number of armies waiting to be deployed
 
-    std::vector<Territory*> toDefend() const;      // Prints the player's territories, asks (console) which ones to defend and returns them
-    std::vector<Territory*> toAttack() const;      // Prints the neighboring enemy territories, asks (console) which ones to attack and returns them
+    void setStrategy(PlayerStrategy* newStrategy); // Replaces the strategy of the player (can be done at any time); the player takes ownership of it
+    PlayerStrategy* getStrategy() const;           // Returns the strategy currently used by the player
 
-    void resetPlannedArmies();                     // Starts a new issuing phase: every territory is planned with the armies it has now and the chosen targets are forgotten
-
-    // Asks the player (through the console) for one order and adds it to the list of orders.
-    // Returns true if an order was issued, false if the player has no more orders to issue this turn.
+    // Strategy pattern: these three methods only delegate to the player's strategy.
+    std::vector<Territory*> toDefend() const;      // Delegates to the strategy: territories to defend
+    std::vector<Territory*> toAttack() const;      // Delegates to the strategy: territories to attack
+    // Delegates to the strategy: issues one order. Returns true if an order was issued,
+    // false if the player has no more orders to issue this turn.
     // The players and the deck are needed by the diplomacy card and by the cards in general.
     bool issueOrder(const std::vector<Player*>& players, Deck* deck);
+
+    void resetPlannedArmies();                     // Starts a new issuing phase: every territory is planned with the armies it has now and the chosen targets are forgotten
 
     void addNegotiation(Player* other);            // Records that this player cannot attack 'other' this turn
     bool isNegotiatingWith(Player* other) const;   // Tells whether attacks against 'other' are blocked
@@ -64,23 +68,12 @@ private:
     OrdersList* orders;                       // owned
     int* pool;                                // owned: armies not yet deployed
     std::vector<Player*>* negotiatedWith;     // owned: players this player is negotiating with this turn
+    PlayerStrategy* strategy;                 // owned: decides how the player issues orders and chooses targets
 
-    void chooseTargets();                                                            // Asks toDefend() and toAttack() and remembers the answers for this turn
-    int getPlannedArmies(Territory* territory) const;                              // Armies that can still be used from a territory
-    bool queueOrder(Order* order);                                                   // Adds an order to the list, deletes it if the list is full
-    void printTerritories(const std::string& title, const std::vector<Territory*>& list) const; // Prints a numbered list of territories
-    Territory* chooseTerritory(const std::string& title, const std::vector<Territory*>& list) const; // Asks for a territory in a list, nullptr if cancelled
-    Player* choosePlayer(const std::vector<Player*>& players) const;                  // Asks for another player, nullptr if cancelled
+    int getPlannedArmies(Territory* territory) const;// Armies that can still be used from a territory
+    bool queueOrder(Order* order);                   // Adds an order to the list, deletes it if the list is full
 
-    bool issueDeployOrder(const std::vector<Territory*>& toDefend);                  // Asks for a deploy order, the only kind allowed while the pool is not empty
-    bool issueAdvanceOrder(const std::vector<Territory*>& targets, bool attack);     // Asks for an advance order towards one of the targets
-    bool issueCardOrder(const std::vector<Player*>& players, Deck* deck,
-                        const std::vector<Territory*>& toDefend,
-                        const std::vector<Territory*>& toAttack);                    // Asks for a card to play and the order it creates
-    bool issueBombOrder(const std::vector<Territory*>& toAttack);                    // Asks for the target of a bomb card
-    bool issueBlockadeOrder(const std::vector<Territory*>& toDefend);                // Asks for the target of a blockade card
-    bool issueAirliftOrder();                                                        // Asks for the source, target and armies of an airlift card
-    bool issueNegotiateOrder(const std::vector<Player*>& players);                   // Asks for the target of a diplomacy card
+    friend class HumanPlayerStrategy;         // the human strategy works directly on the player's turn state (targets, planned armies, pool, hand, orders)
 };
 
 #endif // PLAYER_H
